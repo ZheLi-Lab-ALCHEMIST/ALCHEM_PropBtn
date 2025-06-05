@@ -1,0 +1,33 @@
+{
+  "name": "Custom Upload Demo Config",
+  "version": "1.0.0",
+  "description": "这是一个示例配置文件，用于测试Custom Upload Config File节点",
+  "settings": {
+    "upload_folder": "configs",
+    "supported_formats": [".json", ".yaml", ".yml", ".toml"],
+    "auto_parse": true,
+    "encoding": "utf-8"
+  },
+  "features": {
+    "drag_and_drop": true,
+    "progress_indicator": true,
+    "auto_refresh": true,
+    "error_handling": true
+  },
+  "demo_data": {
+    "numbers": [1, 2, 3, 4, 5],
+    "strings": ["hello", "world", "测试"],
+    "nested": {
+      "level1": {
+        "level2": {
+          "message": "这是嵌套的JSON数据"
+        }
+      }
+    }
+  },
+  "metadata": {
+    "created_by": "ComfyUI Custom Upload Extension",
+    "created_at": "2024-01-01",
+    "purpose": "demonstration and testing"
+  }
+} 
