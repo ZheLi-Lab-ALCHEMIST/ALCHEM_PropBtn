@@ -8,6 +8,13 @@ import {
     handleUploadNodeCreated
 } from "./uploadCore.js";
 
+// 导入分子文件上传模块
+import {
+    initMolecularUpload,
+    createMolecularUploadWidget,
+    processMolecularUploadNodes
+} from "./uploadMolecules.js";
+
 // 导入3D显示模块
 import { 
     init3DDisplay, 
@@ -40,6 +47,11 @@ const EXTENSION_CONFIG = {
         upload: {
             name: "📁 Upload Core",
             description: "File upload functionality with drag & drop support",
+            version: "1.0.0"
+        },
+        molecularUpload: {
+            name: "🧪 Molecular Upload",
+            description: "Specialized molecular file upload with format validation",
             version: "1.0.0"
         },
         display3D: {
@@ -95,6 +107,10 @@ const initializeModules = () => {
         initUploadCore();
         logger.info("Upload core module initialized", 'upload');
         
+        // 初始化分子文件上传模块
+        initMolecularUpload();
+        logger.info("Molecular upload module initialized", 'molecularUpload');
+        
         // 初始化3D显示模块
         init3DDisplay();
         logger.info("3D display module initialized", 'display3D');
@@ -111,6 +127,7 @@ const getCustomWidgets = () => {
     try {
         const widgets = {
             CUSTOMUPLOAD: createCustomUploadWidget(),
+            MOLECULARUPLOAD: createMolecularUploadWidget(),
             MOLSTAR3DDISPLAY: createMolstar3DDisplayWidget()
         };
         
@@ -136,6 +153,14 @@ const beforeRegisterNodeDef = (nodeType, nodeData) => {
         if (uploadResult) {
             required.upload = uploadResult.upload;
             logger.debug(`Processed upload node: ${nodeData.name}`, 'upload');
+            processed = true;
+        }
+        
+        // 处理分子文件上传节点
+        const molecularUploadResult = processMolecularUploadNodes(nodeType, nodeData);
+        if (molecularUploadResult) {
+            required.molecular_upload = molecularUploadResult.molecular_upload;
+            logger.debug(`Processed molecular upload node: ${nodeData.name}`, 'molecularUpload');
             processed = true;
         }
         
