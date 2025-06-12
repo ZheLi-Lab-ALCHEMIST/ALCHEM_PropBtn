@@ -377,14 +377,34 @@ export const show3DMolecularView = async (node, inputName) => {
         console.log(`🧪 Checking backend memory for molecular data: ${inputName}`);
         console.log(`🧪 Node ID: ${node.id}, Selected file: ${selectedFile}`);
         
+        // 🔧 关键修复：获取正确的节点ID
+        // ComfyUI在不同tab中可能给节点分配相同的node.id，但每个节点实例有唯一的标识
+        let nodeId = node.id;
+        
+        // 检查是否有ComfyUI的唯一标识符
+        if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
+            nodeId = node.graph.runningContext.unique_id;
+            console.log(`🔧 Using ComfyUI unique_id: ${nodeId}`);
+        } else if (node._id) {
+            nodeId = node._id;
+            console.log(`🔧 Using node._id: ${nodeId}`);
+        } else {
+            // 使用节点的内存地址或其他唯一标识
+            if (!node._uniqueDisplayId) {
+                node._uniqueDisplayId = `${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            nodeId = node._uniqueDisplayId;
+            console.log(`🔧 Generated unique display ID: ${nodeId}`);
+        }
+        
         // 🌟 步骤1：尝试从后端内存获取分子数据
         let molecularData = null;
         let backendData = null;
         
         try {
-            // 🚀 首先尝试从后端内存获取数据
-            console.log(`🧪 Attempting to fetch from backend memory...`);
-            backendData = await fetchMolecularDataFromBackend(node.id);
+            // 🚀 关键修复：根据文件名查找数据，避免节点ID冲突
+            console.log(`🧪 Attempting to fetch from backend memory using nodeId: ${nodeId}...`);
+            backendData = await fetchMolecularDataFromBackend(nodeId);
             
             if (backendData && backendData.success) {
                 molecularData = backendData.data;
@@ -394,7 +414,29 @@ export const show3DMolecularView = async (node, inputName) => {
                 console.log(`   - Atoms: ${molecularData.atoms}`);
                 console.log(`   - Cached at: ${new Date(molecularData.cached_at * 1000).toLocaleString()}`);
             } else {
-                console.log(`⚠️ No backend memory data available: ${backendData?.error || 'Unknown error'}`);
+                console.log(`⚠️ No data for node ${nodeId}, trying filename-based lookup...`);
+                
+                // 🔧 备选方案：根据文件名查找数据（解决节点ID冲突）
+                if (selectedFile && selectedFile !== 'benzene') {
+                    console.log(`🔍 Searching for molecular data by filename: ${selectedFile}`);
+                    
+                    // 获取缓存状态，查找匹配的文件
+                    const cacheStatus = await fetchCacheStatusFromBackend();
+                    if (cacheStatus && cacheStatus.success && cacheStatus.data.nodes) {
+                        for (const cachedNode of cacheStatus.data.nodes) {
+                            if (cachedNode.filename === selectedFile) {
+                                console.log(`🎯 Found matching file in cache: ${selectedFile} (node: ${cachedNode.node_id})`);
+                                // 使用找到的节点ID重新获取数据
+                                backendData = await fetchMolecularDataFromBackend(cachedNode.node_id);
+                                if (backendData && backendData.success) {
+                                    molecularData = backendData.data;
+                                    console.log(`✅ Retrieved data by filename: ${molecularData.filename}`);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.warn(`🚨 Failed to fetch from backend memory:`, error);

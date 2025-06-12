@@ -110,6 +110,7 @@ async def handle_molecular_upload_request(request: web.Request):
         filename = None
         node_id = None
         folder = "molecules"
+        custom_filename = None  # 🔧 新增：自定义文件名支持
         
         # 读取表单字段
         while True:
@@ -138,6 +139,8 @@ async def handle_molecular_upload_request(request: web.Request):
                 node_id = await field.text()
             elif field.name == 'folder':
                 folder = await field.text()
+            elif field.name == 'custom_filename':  # 🔧 新增：处理自定义文件名
+                custom_filename = await field.text()
         
         # 验证必需字段
         if not file_content or not filename or not node_id:
@@ -146,14 +149,19 @@ async def handle_molecular_upload_request(request: web.Request):
                 status=400
             )
         
-        logger.info(f"🧪 接收到分子文件上传: 节点ID={node_id}, 文件={filename}, 大小={len(file_content)} 字符")
+        # 🔧 使用自定义文件名（如果提供）来同步重命名
+        actual_filename = custom_filename if custom_filename else filename
+        
+        logger.info(f"🧪 接收到分子文件上传: 节点ID={node_id}, 文件={actual_filename}, 大小={len(file_content)} 字符")
+        if custom_filename:
+            logger.info(f"🔧 使用自定义文件名同步: {filename} → {actual_filename}")
         
         # 直接存储到后端内存
         from .molecular_memory import store_molecular_data
         
         stored_data = store_molecular_data(
             node_id=node_id,
-            filename=filename,
+            filename=actual_filename,  # 使用实际文件名
             folder=folder,
             content=file_content
         )

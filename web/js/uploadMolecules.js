@@ -397,14 +397,20 @@ export const analyzeMolecularFile = async (file) => {
 };
 
 // 上传分子文件到后端内存（新架构）
-export const uploadMolecularFileToBackend = async (file, molecularFolder, nodeId) => {
+export const uploadMolecularFileToBackend = async (file, molecularFolder, nodeId, customFileName = null) => {
     const formData = new FormData();
     formData.append('file', file);  // 分子文件
     formData.append('node_id', nodeId);  // 节点ID
     formData.append('folder', molecularFolder);  // 存储文件夹
+    
+    // 🔧 新增：支持自定义文件名（用于同步重命名）
+    if (customFileName) {
+        formData.append('custom_filename', customFileName);
+    }
 
     try {
-        console.log(`🧪 Uploading molecular file to backend memory: ${file.name} -> node ${nodeId}`);
+        const displayName = customFileName || file.name;
+        console.log(`🧪 Uploading molecular file to backend memory: ${displayName} -> node ${nodeId}`);
         
         const response = await fetch('/alchem_propbtn/api/upload_molecular', {
             method: 'POST',
@@ -502,17 +508,40 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             // 🚀 步骤2：同时上传到文件系统（持久化保存）
             infoContainer.innerHTML = `💾 正在保存到文件系统 ${analysis.icon} ${analysis.format} 文件...`;
             const fileSystemResult = await uploadMolecularFile(file, molecularFolder);
-            progressBar.style.width = '90%';
+            progressBar.style.width = '85%';
             
             console.log(`✅ 文件已保存到文件系统: ${fileSystemResult}`);
+            
+            // 🔧 关键修复：检查文件系统是否重命名了文件
+            const actualFileName = fileSystemResult.includes('/') ? 
+                fileSystemResult.split('/').pop() : fileSystemResult;
+            
+            if (actualFileName !== backendData.filename) {
+                console.log(`🔧 File was renamed by ComfyUI: ${backendData.filename} → ${actualFileName}`);
+                console.log(`🔄 Updating backend memory with actual filename...`);
+                
+                // 重新上传到后端内存，使用实际的文件名
+                try {
+                    const syncResult = await uploadMolecularFileToBackend(file, molecularFolder, node.id, actualFileName);
+                    if (syncResult.success) {
+                        console.log(`✅ Backend memory synced with actual filename: ${actualFileName}`);
+                        // 更新backendData为同步后的结果
+                        Object.assign(backendData, syncResult.data);
+                    }
+                } catch (syncError) {
+                    console.warn(`⚠️ Failed to sync backend memory with actual filename:`, syncError);
+                }
+            }
+            
+            progressBar.style.width = '90%';
             
             // 刷新combo选项（用于显示）
             await app.refreshComboInNodes();
             
-            // 更新combo widget的值 - 使用后端返回的文件名
-            comboWidget.value = backendData.filename;
+            // 更新combo widget的值 - 使用实际的文件名
+            comboWidget.value = actualFileName;
             if (comboWidget.callback) {
-                comboWidget.callback(backendData.filename);
+                comboWidget.callback(actualFileName);  // 🔧 修复：使用实际文件名
             }
             progressBar.style.width = '100%';
             
