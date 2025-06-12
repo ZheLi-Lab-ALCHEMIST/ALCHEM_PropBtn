@@ -9,7 +9,7 @@ import time
 
 # 导入分子数据内存管理器
 try:
-    from .molecular_memory import store_molecular_data, get_molecular_data, get_cache_status, molecular_memory
+    from ..backend.molecular_memory import store_molecular_data, get_molecular_data, get_cache_status, molecular_memory
     MOLECULAR_MEMORY_AVAILABLE = True
     print("🧪 已成功导入分子数据内存管理器")
 except ImportError as e:

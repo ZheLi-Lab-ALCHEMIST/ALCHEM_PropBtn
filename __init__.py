@@ -1,8 +1,8 @@
-from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
+from .nodes.nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
 # 导入测试节点
 try:
-    from .test_node import NODE_CLASS_MAPPINGS as TEST_NODE_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as TEST_NODE_DISPLAY_MAPPINGS
+    from .nodes.test_node import NODE_CLASS_MAPPINGS as TEST_NODE_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as TEST_NODE_DISPLAY_MAPPINGS
     # 合并节点映射
     NODE_CLASS_MAPPINGS.update(TEST_NODE_MAPPINGS)
     NODE_DISPLAY_NAME_MAPPINGS.update(TEST_NODE_DISPLAY_MAPPINGS)
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 try:
     # 尝试从我们的API模块导入处理函数
-    from .molecular_api import molecular_api
+    from .backend.molecular_api import molecular_api
     API_AVAILABLE = True
     logger.info("✅ ALCHEM_PropBtn: Molecular API模块加载成功")
 except ImportError:
@@ -34,7 +34,7 @@ except ImportError:
 
 # 安装执行钩子
 try:
-    from .execution_hook import install_molecular_execution_hook
+    from .backend.execution_hook import install_molecular_execution_hook
     hook_installed = install_molecular_execution_hook()
     if hook_installed:
         logger.info("🔗 ALCHEM_PropBtn: 分子数据执行钩子安装成功")
@@ -157,7 +157,7 @@ async def handle_molecular_upload_request(request: web.Request):
             logger.info(f"🔧 使用自定义文件名同步: {filename} → {actual_filename}")
         
         # 直接存储到后端内存
-        from .molecular_memory import store_molecular_data
+        from .backend.molecular_memory import store_molecular_data
         
         stored_data = store_molecular_data(
             node_id=node_id,
@@ -214,7 +214,7 @@ async def handle_status_request(request: web.Request):
         
         # 获取执行钩子状态
         try:
-            from .execution_hook import get_hook_status
+            from .backend.execution_hook import get_hook_status
             hook_status = get_hook_status()
             status_info["execution_hook"] = hook_status
         except ImportError:
@@ -223,7 +223,7 @@ async def handle_status_request(request: web.Request):
         # 获取缓存状态
         if API_AVAILABLE:
             try:
-                from .molecular_api import api_get_cache_status
+                from .backend.molecular_api import api_get_cache_status
                 cache_response = api_get_cache_status()
                 if cache_response["success"]:
                     status_info["cache"] = cache_response["data"]

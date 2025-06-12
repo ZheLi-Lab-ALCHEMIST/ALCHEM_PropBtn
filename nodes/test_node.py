@@ -87,7 +87,7 @@ class ALCHEM_SystemTestNode:
         
         try:
             # 尝试导入分子内存管理器
-            from .molecular_memory import (
+            from ..backend.molecular_memory import (
                 store_molecular_data, 
                 get_molecular_data, 
                 get_cache_status,
@@ -140,7 +140,7 @@ ATOM      2  CA  ALA A   1      19.030  16.101  27.938  1.00 10.38           C""
         
         try:
             # 尝试导入API模块
-            from .molecular_api import MolecularAPI
+            from ..backend.molecular_api import MolecularAPI
             report.append("✅ 分子API模块导入成功")
             
             # 检查API类是否正确定义
@@ -171,7 +171,7 @@ ATOM      2  CA  ALA A   1      19.030  16.101  27.938  1.00 10.38           C""
         
         try:
             # 检查执行钩子
-            from .execution_hook import MolecularExecutionHook
+            from ..backend.execution_hook import MolecularExecutionHook
             report.append("✅ 执行钩子模块导入成功")
             
             # 检查钩子类是否正确定义
@@ -198,7 +198,7 @@ ATOM      2  CA  ALA A   1      19.030  16.101  27.938  1.00 10.38           C""
         report.append("-" * 30)
         
         try:
-            from .molecular_memory import MOLECULAR_DATA_CACHE, molecular_memory
+            from ..backend.molecular_memory import MOLECULAR_DATA_CACHE, molecular_memory
             
             # 检查缓存结构
             if isinstance(MOLECULAR_DATA_CACHE, dict):
