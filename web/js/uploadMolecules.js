@@ -490,16 +490,21 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             infoContainer.innerHTML = `✅ 格式验证通过: <span class="molecular-format-indicator">${formatInfo}</span>`;
             progressBar.style.width = '50%';
             
-            // 🚀 使用新的后端内存上传API
+            // 🚀 步骤1：上传到后端内存（快速访问）
             infoContainer.innerHTML = `🚀 正在上传到后端内存 ${analysis.icon} ${analysis.format} 文件...`;
             const uploadResult = await uploadMolecularFileToBackend(file, molecularFolder, node.id);
-            progressBar.style.width = '80%';
+            progressBar.style.width = '70%';
             
             // 🚀 后端内存上传完成，获取结果信息
             const backendData = uploadResult.data;
             infoContainer.innerHTML = `🎉 已存储到后端内存: ${backendData.format} (${backendData.atoms} 原子)`;
             
+            // 🚀 步骤2：同时上传到文件系统（持久化保存）
+            infoContainer.innerHTML = `💾 正在保存到文件系统 ${analysis.icon} ${analysis.format} 文件...`;
+            const fileSystemResult = await uploadMolecularFile(file, molecularFolder);
             progressBar.style.width = '90%';
+            
+            console.log(`✅ 文件已保存到文件系统: ${fileSystemResult}`);
             
             // 刷新combo选项（用于显示）
             await app.refreshComboInNodes();
@@ -511,9 +516,10 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             }
             progressBar.style.width = '100%';
             
-            // 显示成功信息
-            infoContainer.innerHTML = `🎉 成功上传到后端内存: <span class="molecular-format-indicator">${formatInfo}</span>
-                <br><small style="color: #4fc3f7;">🚀 节点 ${node.id} | 大小: ${(backendData.file_size / 1024).toFixed(1)} KB</small>`;
+            // 显示成功信息（双重上传完成）
+            infoContainer.innerHTML = `🎉 双重上传成功: <span class="molecular-format-indicator">${formatInfo}</span>
+                <br><small style="color: #4fc3f7;">🚀 内存: 节点 ${node.id} | 💾 文件: ${fileSystemResult}</small>
+                <br><small style="color: #81c784;">大小: ${(backendData.file_size / 1024).toFixed(1)} KB | 原子数: ${backendData.atoms}</small>`;
             
             // 隐藏进度条，保留信息显示一段时间
             setTimeout(() => {
@@ -525,7 +531,9 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
                 infoContainer.style.display = 'none';
             }, 3000);
             
-            console.log(`🚀 Successfully uploaded molecular file to backend memory: ${backendData.filename} -> node ${node.id}`);
+            console.log(`🚀 Successfully completed dual upload:`);
+            console.log(`   💾 File system: ${fileSystemResult}`);
+            console.log(`   🚀 Backend memory: ${backendData.filename} -> node ${node.id}`);
             
         } catch (error) {
             console.error('🧪 Molecular upload failed:', error);

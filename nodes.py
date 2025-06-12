@@ -638,37 +638,64 @@ class MolecularUploadDemoNode:
     
     @classmethod
     def INPUT_TYPES(cls):
-        # 获取input/molecules目录下的分子文件
-        input_dir = folder_paths.get_input_directory()
-        molecules_dir = os.path.join(input_dir, 'molecules')
-        
-        # 创建molecules目录如果不存在
-        if not os.path.exists(molecules_dir):
-            os.makedirs(molecules_dir)
-        
-        # 扫描支持的分子文件格式
-        molecular_formats = ['.pdb', '.mol', '.sdf', '.xyz', '.mol2', '.cif', '.gro', '.fasta', '.fa']
+        # 🚀 新逻辑：同时扫描文件系统和后端内存中的文件
         molecule_files = []
         
-        for file in os.listdir(molecules_dir):
-            if os.path.isfile(os.path.join(molecules_dir, file)):
-                file_ext = os.path.splitext(file)[1].lower()
-                if file_ext in molecular_formats:
-                    # 🔧 确保只返回文件名，不包含路径
-                    molecule_files.append(file)
+        # 1. 扫描文件系统中的分子文件（兼容性）
+        try:
+            input_dir = folder_paths.get_input_directory()
+            molecules_dir = os.path.join(input_dir, 'molecules')
+            
+            # 创建molecules目录如果不存在
+            if not os.path.exists(molecules_dir):
+                os.makedirs(molecules_dir)
+            
+            # 扫描支持的分子文件格式
+            molecular_formats = ['.pdb', '.mol', '.sdf', '.xyz', '.mol2', '.cif', '.gro', '.fasta', '.fa']
+            
+            for file in os.listdir(molecules_dir):
+                if os.path.isfile(os.path.join(molecules_dir, file)):
+                    file_ext = os.path.splitext(file)[1].lower()
+                    if file_ext in molecular_formats:
+                        molecule_files.append(file)
+        except Exception as e:
+            print(f"⚠️ 扫描文件系统分子文件时出错: {e}")
         
+        # 2. 🎯 新增：扫描后端内存中的分子文件
+        try:
+            if MOLECULAR_MEMORY_AVAILABLE:
+                from .molecular_memory import get_cache_status
+                cache_status = get_cache_status()
+                
+                if cache_status and 'nodes' in cache_status:
+                    for node_data in cache_status['nodes']:
+                        filename = node_data.get('filename')
+                        if filename and filename not in molecule_files:
+                            molecule_files.append(filename)
+                            print(f"🧪 添加后端内存文件到选项: {filename}")
+        except Exception as e:
+            print(f"⚠️ 扫描后端内存分子文件时出错: {e}")
+        
+        # 3. 确保至少有一个选项
         if not molecule_files:
             molecule_files = ["no_molecular_files_found.pdb"]
+        else:
+            molecule_files = sorted(list(set(molecule_files)))  # 去重并排序
+        
+        # 🎯 关键修复：使用STRING类型而不是固定列表，允许任意文件名
+        print(f"🧪 动态生成的分子文件列表: {molecule_files}")
         
         return {
             "required": {
-                "molecular_file": (sorted(molecule_files), {
+                "molecular_file": ("STRING", {
+                    "default": molecule_files[0] if molecule_files else "no_molecular_files_found.pdb",
                     "molecular_upload": True,  # 🧪 启用分子文件上传功能
                     "molstar_3d_display": True,  # 🧪 启用3D分子结构显示功能
                     "molecular_folder": "molecules",  # 指定分子文件存储文件夹
                     "display_mode": "ball_and_stick",  # 3D显示模式
                     "background_color": "#2E2E2E",  # 3D显示背景色
-                    "tooltip": "选择或上传分子文件 - 支持PDB/MOL/SDF/XYZ/MOL2/CIF/GRO/FASTA格式，可直接3D预览"
+                    "tooltip": "分子文件名 - 可以上传新文件或直接输入文件名。支持PDB/MOL/SDF/XYZ/MOL2/CIF/GRO/FASTA格式",
+                    "forceInput": False  # 允许用户直接输入
                 }),
                 "processing_mode": (["analysis", "visualization", "conversion", "validation"], {
                     "default": "analysis",
@@ -703,12 +730,18 @@ class MolecularUploadDemoNode:
         处理上传的分子文件 - 优化数据流，先检查前端内存
         """
         try:
-            # 🎯 步骤1：获取稳定的节点ID (从ComfyUI context中获取或生成)
-            # 优先使用ComfyUI提供的unique_id，如果没有则使用稳定的生成方式
+            # 🎯 步骤1：获取节点ID - 优先使用前端的node.id，保持一致性
+            # ComfyUI在执行时会传递unique_id，但前端上传时使用的是node.id
+            # 我们需要在这里建立映射关系
+            
+            # 方法1：直接使用ComfyUI的unique_id（最可靠）
             node_unique_id = kwargs.get('unique_id')
             if not node_unique_id:
-                # 使用更稳定的ID生成方式，不包含时间戳
+                # 备用方案：生成稳定ID
                 node_unique_id = hashlib.md5(f"{id(self)}_{molecular_file}_{processing_mode}".encode()).hexdigest()[:16]
+            
+            # 🔧 关键修复：检查是否有相同文件名但不同ID的数据，进行ID映射
+            # 这样可以处理前端node.id与后端unique_id不匹配的问题
             
             print(f"🧪 开始处理分子文件 - 节点ID: {node_unique_id}")
             print(f"   文件: {molecular_file}")
@@ -719,31 +752,49 @@ class MolecularUploadDemoNode:
                 molecular_file = os.path.basename(molecular_file)
                 print(f"   🔧 路径修正: {molecular_file}")
             
-            # 🎯 步骤2：优先查找内存中是否已有数据（可能来自前端上传）
+            # 🎯 步骤2：智能查找内存中的数据（处理ID不匹配问题）
             molecular_info = None
             stored_data = None
             
             if MOLECULAR_MEMORY_AVAILABLE:
                 try:
-                    # 先检查当前节点是否已有数据
+                    # 第一步：检查当前节点ID是否已有数据
                     stored_data = get_molecular_data(node_unique_id)
                     if stored_data:
                         print(f"🚀 找到已缓存的分子数据 - 节点ID: {node_unique_id}")
                         molecular_info = stored_data
                     else:
-                        # 检查是否有同名文件的数据
+                        # 第二步：🔧 关键修复 - 查找同名文件的数据（处理ID不匹配）
+                        print(f"🔍 未找到当前节点数据，查找同名文件: {molecular_file}")
                         cache_status = get_cache_status()
-                        for cached_node_id, cached_data in cache_status.get('nodes', {}).items():
+                        
+                        # 遍历所有缓存的数据，查找同名文件
+                        for cached_data in cache_status.get('nodes', []):
                             if cached_data.get('filename') == molecular_file:
-                                print(f"🔄 找到同名文件的缓存数据，复制到当前节点")
-                                stored_data = store_molecular_data(
-                                    node_id=node_unique_id,
-                                    filename=molecular_file,
-                                    folder="molecules"
-                                )
-                                if stored_data:
-                                    molecular_info = stored_data
-                                break
+                                print(f"🔄 找到同名文件的缓存数据 - 原节点ID: {cached_data.get('node_id')}")
+                                print(f"   将复制到当前节点ID: {node_unique_id}")
+                                
+                                # 从原节点获取完整数据
+                                original_node_id = cached_data.get('node_id')
+                                original_data = get_molecular_data(original_node_id)
+                                
+                                if original_data and 'content' in original_data:
+                                    # 将数据复制到当前节点ID
+                                    stored_data = store_molecular_data(
+                                        node_id=node_unique_id,
+                                        filename=molecular_file,
+                                        folder="molecules",
+                                        content=original_data['content']  # 直接使用原有内容
+                                    )
+                                    if stored_data:
+                                        print(f"✅ 数据复制成功 - 新节点ID: {node_unique_id}")
+                                        molecular_info = stored_data
+                                    break
+                                else:
+                                    print(f"⚠️ 原数据获取失败，节点ID: {original_node_id}")
+                        
+                        if not molecular_info:
+                            print(f"⚠️ 未找到文件 {molecular_file} 的任何缓存数据")
                         
                         # 如果内存中没有，则从文件系统读取并存储
                         if not stored_data:
@@ -815,26 +866,29 @@ class MolecularUploadDemoNode:
                     molecular_info["stored_in_memory"] = MOLECULAR_MEMORY_AVAILABLE and stored_data is not None
             
             # 🎯 步骤5：根据数据来源进行格式解析
+            # 统一处理文件扩展名，确保file_ext在所有路径中都有定义
+            file_ext = os.path.splitext(molecular_file)[1].lower()
+            
             # 优先使用内存中的解析结果，否则解析content
             if molecular_info.get("stored_in_memory") and stored_data:
                 # 如果数据来自内存，大多数信息已经解析好了
                 print(f"📊 使用内存中的解析结果")
                 if "format_name" not in molecular_info and "format" in molecular_info:
-                    file_ext = molecular_info["format"]
-                    if file_ext == '.pdb':
+                    # 使用内存中存储的格式信息，如果没有则使用文件扩展名
+                    stored_ext = molecular_info.get("format", file_ext)
+                    if stored_ext == '.pdb':
                         molecular_info["format_name"] = "Protein Data Bank"
-                    elif file_ext in ['.mol', '.sdf']:
+                    elif stored_ext in ['.mol', '.sdf']:
                         molecular_info["format_name"] = "MDL Molfile/SDF"
-                    elif file_ext == '.xyz':
+                    elif stored_ext == '.xyz':
                         molecular_info["format_name"] = "XYZ Coordinates"
-                    elif file_ext in ['.fasta', '.fa']:
+                    elif stored_ext in ['.fasta', '.fa']:
                         molecular_info["format_name"] = "FASTA Sequence"
                     else:
-                        molecular_info["format_name"] = f"Other ({file_ext})"
+                        molecular_info["format_name"] = f"Other ({stored_ext})"
             else:
                 # 如果数据来自文件，需要解析content
                 print(f"📊 解析文件内容")
-                file_ext = os.path.splitext(molecular_file)[1].lower()
                 if file_ext == '.pdb':
                     atom_lines = [line for line in content.split('\n') if line.startswith('ATOM')]
                     molecular_info["atoms"] = len(atom_lines)
@@ -967,6 +1021,45 @@ class MolecularUploadDemoNode:
         # 基于所有输入参数生成组合哈希，确保任何参数变化时重新计算
         content = f"{molecular_file}_{processing_mode}_{output_format}_{enable_validation}_{detail_level}"
         return hashlib.md5(content.encode()).hexdigest()
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, molecular_file, **kwargs):
+        """
+        🎯 新增：验证输入时检查后端内存
+        
+        这个方法在节点执行前被调用，用于验证输入参数的有效性。
+        我们在这里检查文件是否存在于后端内存中。
+        """
+        try:
+            # 1. 检查文件是否在文件系统中（原有逻辑）
+            if molecular_file != "no_molecular_files_found.pdb":
+                input_dir = folder_paths.get_input_directory()
+                molecules_dir = os.path.join(input_dir, 'molecules')
+                file_path = os.path.join(molecules_dir, molecular_file)
+                
+                if os.path.exists(file_path):
+                    return True  # 文件系统中存在
+            
+            # 2. 🚀 新增：检查文件是否在后端内存中
+            if MOLECULAR_MEMORY_AVAILABLE:
+                from .molecular_memory import get_cache_status
+                cache_status = get_cache_status()
+                
+                if cache_status and 'nodes' in cache_status:
+                    for node_data in cache_status['nodes']:
+                        if node_data.get('filename') == molecular_file:
+                            print(f"🧪 验证通过：在后端内存中找到文件 {molecular_file}")
+                            return True  # 后端内存中存在
+            
+            # 3. 如果都没找到，返回错误
+            if molecular_file == "no_molecular_files_found.pdb":
+                return True  # 默认占位符，允许通过
+            else:
+                return f"文件 {molecular_file} 未找到（既不在文件系统中，也不在后端内存中）"
+                
+        except Exception as e:
+            print(f"🚨 验证输入时出错: {e}")
+            return f"验证输入时发生错误: {str(e)}"
 
 
 # 节点映射

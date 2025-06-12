@@ -1,5 +1,14 @@
 from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 
+# 导入测试节点
+try:
+    from .test_node import NODE_CLASS_MAPPINGS as TEST_NODE_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as TEST_NODE_DISPLAY_MAPPINGS
+    # 合并节点映射
+    NODE_CLASS_MAPPINGS.update(TEST_NODE_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(TEST_NODE_DISPLAY_MAPPINGS)
+except ImportError as e:
+    print(f"⚠️ 测试节点导入失败: {e}")
+
 # ====================================================================================================
 # 导入并注册Web API
 #
