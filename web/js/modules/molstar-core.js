@@ -5,26 +5,49 @@
 
 // MolStar库加载函数 - ALCHEM独立版本
 export async function loadMolstarLibrary() {
-    return new Promise((resolve) => {
-        // 检查是否已加载
+    return new Promise(async (resolve) => {
+        console.log("🧪 正在加载ALCHEM集成的MolStar库...");
+        
+        // 强制加载CSS，不管molstar是否已存在
+        const molstarCSSPath = "./extensions/ALCHEM_PropBtn/lib/molstar.css";
+        
+        // 检查CSS是否已加载
+        const existingCSS = document.querySelector('link[href*="molstar.css"]');
+        if (!existingCSS) {
+            console.log("🧪 CSS未加载，开始加载...");
+            
+            const link = document.createElement("link");
+            link.rel = "stylesheet";
+            link.href = molstarCSSPath;
+            link.id = "molstar-main-css";
+            
+            // 等待CSS加载完成
+            const cssLoadPromise = new Promise((cssResolve) => {
+                link.onload = () => {
+                    console.log("🧪 MolStar CSS加载成功:", molstarCSSPath);
+                    cssResolve(true);
+                };
+                link.onerror = () => {
+                    console.error("🧪 MolStar CSS加载失败:", molstarCSSPath);
+                    cssResolve(false);
+                };
+            });
+            
+            document.head.appendChild(link);
+            await cssLoadPromise;
+        } else {
+            console.log("🧪 CSS已存在");
+        }
+        
+        // 检查是否已加载molstar JS
         if (window.molstar) {
             console.log("🧪 MolStar库已存在");
             resolve(true);
             return;
         }
         
-        console.log("🧪 正在加载ALCHEM集成的MolStar库...");
-        
-        // 从ALCHEM自己的lib目录加载
-        const molstarCSSPath = "./extensions/ALCHEM_PropBtn/lib/molstar.css";
+        // 加载JS部分
         const molstarJSPath = "./extensions/ALCHEM_PropBtn/lib/molstar.js";
-        
-        // 加载CSS
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = molstarCSSPath;
-        document.head.appendChild(link);
-        console.log("🧪 加载MolStar CSS:", molstarCSSPath);
         
         // 加载JS
         const script = document.createElement("script");
