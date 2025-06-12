@@ -664,7 +664,7 @@ class MolecularUploadDemoNode:
         # 2. 🎯 新增：扫描后端内存中的分子文件
         try:
             if MOLECULAR_MEMORY_AVAILABLE:
-                from .molecular_memory import get_cache_status
+                from ..backend.molecular_memory import get_cache_status
                 cache_status = get_cache_status()
                 
                 if cache_status and 'nodes' in cache_status:
