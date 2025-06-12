@@ -396,7 +396,40 @@ export const analyzeMolecularFile = async (file) => {
     });
 };
 
-// 上传分子文件到服务器
+// 上传分子文件到后端内存（新架构）
+export const uploadMolecularFileToBackend = async (file, molecularFolder, nodeId) => {
+    const formData = new FormData();
+    formData.append('file', file);  // 分子文件
+    formData.append('node_id', nodeId);  // 节点ID
+    formData.append('folder', molecularFolder);  // 存储文件夹
+
+    try {
+        console.log(`🧪 Uploading molecular file to backend memory: ${file.name} -> node ${nodeId}`);
+        
+        const response = await fetch('/alchem_propbtn/api/upload_molecular', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.status === 200) {
+            const result = await response.json();
+            if (result.success) {
+                console.log(`🚀 Successfully uploaded to backend memory:`, result.data);
+                return result;
+            } else {
+                throw new Error(result.error || 'Backend storage failed');
+            }
+        } else {
+            const errorText = await response.text();
+            throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+    } catch (error) {
+        console.error('🧪 Backend molecular upload error:', error);
+        throw error;
+    }
+};
+
+// 原有的文件系统上传（兼容性保留）
 export const uploadMolecularFile = async (file, molecularFolder) => {
     const formData = new FormData();
     formData.append('image', file); // ComfyUI的上传端点期望'image'字段
@@ -426,6 +459,14 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
         try {
             console.log(`🧪 Starting molecular upload: ${file.name}`);
             
+            // 🎯 获取节点ID - 这是关键！
+            const node = findNodeByWidget(comboWidget);
+            if (!node || !node.id) {
+                throw new Error('无法获取节点ID，上传失败');
+            }
+            
+            console.log(`🎯 Uploading for node ID: ${node.id}`);
+            
             // 显示进度条和信息容器
             progressContainer.style.display = 'block';
             infoContainer.style.display = 'block';
@@ -449,56 +490,30 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             infoContainer.innerHTML = `✅ 格式验证通过: <span class="molecular-format-indicator">${formatInfo}</span>`;
             progressBar.style.width = '50%';
             
-            // 上传文件
-            infoContainer.innerHTML = `📤 正在上传 ${analysis.icon} ${analysis.format} 文件...`;
-            const filename = await uploadMolecularFile(file, molecularFolder);
-            progressBar.style.width = '70%';
-            
-            // 🎯 关键优化：读取文件内容并存储到节点内存
-            infoContainer.innerHTML = `💾 正在加载分子数据到内存...`;
-            
-            // 读取文件内容（这时文件还在内存中，从file对象读取更高效）
-            const fileContent = await readFileContent(file);
+            // 🚀 使用新的后端内存上传API
+            infoContainer.innerHTML = `🚀 正在上传到后端内存 ${analysis.icon} ${analysis.format} 文件...`;
+            const uploadResult = await uploadMolecularFileToBackend(file, molecularFolder, node.id);
             progressBar.style.width = '80%';
             
-            // 创建完整的分子数据对象
-            const molecularData = {
-                filename: filename,
-                originalName: file.name,
-                content: fileContent,
-                analysis: analysis,
-                uploadTime: Date.now(),
-                fileSize: file.size,
-                format: analysis.format,
-                isLoaded: true
-            };
-            
-            // 🎯 存储到节点内存中
-            const node = comboWidget.node || findNodeByWidget(comboWidget);
-            if (node) {
-                // 在节点上创建分子数据存储
-                if (!node.molecularData) {
-                    node.molecularData = {};
-                }
-                node.molecularData[comboWidget.name] = molecularData;
-                
-                console.log(`🧪 Stored molecular data in node ${node.id} for widget ${comboWidget.name}:`, molecularData);
-            }
+            // 🚀 后端内存上传完成，获取结果信息
+            const backendData = uploadResult.data;
+            infoContainer.innerHTML = `🎉 已存储到后端内存: ${backendData.format} (${backendData.atoms} 原子)`;
             
             progressBar.style.width = '90%';
             
-            // 刷新combo选项
+            // 刷新combo选项（用于显示）
             await app.refreshComboInNodes();
             
-            // 更新combo widget的值
-            comboWidget.value = filename;
+            // 更新combo widget的值 - 使用后端返回的文件名
+            comboWidget.value = backendData.filename;
             if (comboWidget.callback) {
-                comboWidget.callback(filename);
+                comboWidget.callback(backendData.filename);
             }
             progressBar.style.width = '100%';
             
             // 显示成功信息
-            infoContainer.innerHTML = `🎉 成功上传并加载: <span class="molecular-format-indicator">${formatInfo}</span>`;
+            infoContainer.innerHTML = `🎉 成功上传到后端内存: <span class="molecular-format-indicator">${formatInfo}</span>
+                <br><small style="color: #4fc3f7;">🚀 节点 ${node.id} | 大小: ${(backendData.file_size / 1024).toFixed(1)} KB</small>`;
             
             // 隐藏进度条，保留信息显示一段时间
             setTimeout(() => {
@@ -510,7 +525,7 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
                 infoContainer.style.display = 'none';
             }, 3000);
             
-            console.log(`🧪 Successfully uploaded and loaded molecular file: ${filename}`);
+            console.log(`🚀 Successfully uploaded molecular file to backend memory: ${backendData.filename} -> node ${node.id}`);
             
         } catch (error) {
             console.error('🧪 Molecular upload failed:', error);

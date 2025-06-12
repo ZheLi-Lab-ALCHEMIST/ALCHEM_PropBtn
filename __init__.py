@@ -9,6 +9,7 @@ from .nodes import NODE_CLASS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS
 import server
 from aiohttp import web
 import logging
+import time
 
 # 获取日志记录器
 logger = logging.getLogger(__name__)
@@ -22,7 +23,18 @@ except ImportError:
     API_AVAILABLE = False
     logger.error("🚨 ALCHEM_PropBtn: Molecular API模块加载失败")
 
-# 这是一个装饰器，ComfyUI用它来发现和注册自定义API路由
+# 安装执行钩子
+try:
+    from .execution_hook import install_molecular_execution_hook
+    hook_installed = install_molecular_execution_hook()
+    if hook_installed:
+        logger.info("🔗 ALCHEM_PropBtn: 分子数据执行钩子安装成功")
+    else:
+        logger.warning("⚠️ ALCHEM_PropBtn: 分子数据执行钩子安装失败")
+except ImportError as e:
+    logger.error(f"🚨 ALCHEM_PropBtn: 执行钩子模块加载失败 - {e}")
+
+# 分子数据查询API
 @server.PromptServer.instance.routes.post("/alchem_propbtn/api/molecular")
 async def handle_molecular_api_request(request: web.Request):
     """
@@ -59,6 +71,159 @@ async def handle_molecular_api_request(request: web.Request):
         
     except Exception as e:
         logger.exception(f"🚨处理 /alchem_propbtn/api/molecular 请求时出错: {e}")
+        return web.json_response(
+            {"success": False, "error": f"服务器内部错误: {str(e)}"},
+            status=500
+        )
+
+# 分子文件上传API - 直接存储到后端内存
+@server.PromptServer.instance.routes.post("/alchem_propbtn/api/upload_molecular")
+async def handle_molecular_upload_request(request: web.Request):
+    """
+    处理分子文件上传请求，直接存储到后端内存
+    
+    接收multipart/form-data格式的文件上传请求：
+    - file: 分子文件
+    - node_id: 目标节点ID
+    - folder: 存储文件夹（可选，默认molecules）
+    """
+    if not API_AVAILABLE:
+        return web.json_response(
+            {"success": False, "error": "Molecular API模块不可用"},
+            status=500
+        )
+    
+    try:
+        # 解析multipart表单数据
+        reader = await request.multipart()
+        
+        file_content = None
+        filename = None
+        node_id = None
+        folder = "molecules"
+        
+        # 读取表单字段
+        while True:
+            field = await reader.next()
+            if field is None:
+                break
+            
+            if field.name == 'file':
+                filename = field.filename
+                file_content = await field.read()
+                # 转换为字符串 - 处理bytes和bytearray
+                if isinstance(file_content, (bytes, bytearray)):
+                    try:
+                        file_content = file_content.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # 如果UTF-8解码失败，尝试其他编码
+                        try:
+                            file_content = file_content.decode('latin-1')
+                        except UnicodeDecodeError:
+                            logger.error(f"🚨 无法解码文件内容: {filename}")
+                            return web.json_response(
+                                {"success": False, "error": f"无法解码文件 {filename}，请检查文件编码"},
+                                status=400
+                            )
+            elif field.name == 'node_id':
+                node_id = await field.text()
+            elif field.name == 'folder':
+                folder = await field.text()
+        
+        # 验证必需字段
+        if not file_content or not filename or not node_id:
+            return web.json_response(
+                {"success": False, "error": "缺少必需字段: file, filename, node_id"},
+                status=400
+            )
+        
+        logger.info(f"🧪 接收到分子文件上传: 节点ID={node_id}, 文件={filename}, 大小={len(file_content)} 字符")
+        
+        # 直接存储到后端内存
+        from .molecular_memory import store_molecular_data
+        
+        stored_data = store_molecular_data(
+            node_id=node_id,
+            filename=filename,
+            folder=folder,
+            content=file_content
+        )
+        
+        if stored_data:
+            logger.info(f"✅ 分子文件已存储到后端内存: {filename} -> 节点 {node_id}")
+            return web.json_response({
+                "success": True,
+                "data": {
+                    "filename": filename,
+                    "node_id": node_id,
+                    "format": stored_data.get("format"),
+                    "atoms": stored_data.get("atoms", 0),
+                    "file_size": stored_data.get("file_stats", {}).get("size", 0),
+                    "cached_at": stored_data.get("cached_at")
+                },
+                "message": f"分子文件 {filename} 已成功存储到后端内存"
+            })
+        else:
+            logger.error(f"🚨 存储分子文件到后端内存失败: {filename}")
+            return web.json_response(
+                {"success": False, "error": "存储分子文件到后端内存失败"},
+                status=500
+            )
+        
+    except Exception as e:
+        logger.exception(f"🚨 处理分子文件上传时出错: {e}")
+        return web.json_response(
+            {"success": False, "error": f"服务器内部错误: {str(e)}"},
+            status=500
+        )
+
+# 获取系统状态API - 用于调试和监控
+@server.PromptServer.instance.routes.get("/alchem_propbtn/api/status")
+async def handle_status_request(request: web.Request):
+    """
+    获取ALCHEM_PropBtn系统状态
+    
+    返回：
+    - API可用性
+    - 执行钩子状态
+    - 后端内存缓存状态
+    """
+    try:
+        status_info = {
+            "api_available": API_AVAILABLE,
+            "timestamp": time.time(),
+            "version": "1.0.0"
+        }
+        
+        # 获取执行钩子状态
+        try:
+            from .execution_hook import get_hook_status
+            hook_status = get_hook_status()
+            status_info["execution_hook"] = hook_status
+        except ImportError:
+            status_info["execution_hook"] = {"error": "执行钩子模块不可用"}
+        
+        # 获取缓存状态
+        if API_AVAILABLE:
+            try:
+                from .molecular_api import api_get_cache_status
+                cache_response = api_get_cache_status()
+                if cache_response["success"]:
+                    status_info["cache"] = cache_response["data"]
+                else:
+                    status_info["cache"] = {"error": cache_response["error"]}
+            except Exception as e:
+                status_info["cache"] = {"error": f"获取缓存状态失败: {str(e)}"}
+        else:
+            status_info["cache"] = {"error": "API不可用"}
+        
+        return web.json_response({
+            "success": True,
+            "data": status_info
+        })
+        
+    except Exception as e:
+        logger.exception(f"🚨 获取系统状态时出错: {e}")
         return web.json_response(
             {"success": False, "error": f"服务器内部错误: {str(e)}"},
             status=500

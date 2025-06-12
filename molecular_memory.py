@@ -39,15 +39,16 @@ class MolecularDataManager:
     
     @classmethod
     def store_molecular_data(cls, node_id: str, filename: str, folder: str = "molecules", 
-                           instance_id: str = None) -> Optional[Dict[str, Any]]:
+                           instance_id: str = None, content: str = None) -> Optional[Dict[str, Any]]:
         """
-        在节点执行时将分子数据存储到全局缓存
+        存储分子数据到全局缓存
         
         Args:
             node_id: ComfyUI节点的唯一ID
             filename: 分子文件名
             folder: 存储文件夹（默认molecules）
             instance_id: 节点实例ID
+            content: 分子文件内容（如果提供，则不从文件读取）
             
         Returns:
             存储的分子数据对象，如果失败则返回None
@@ -56,17 +57,47 @@ class MolecularDataManager:
             with CACHE_LOCK:
                 logger.info(f"🧪 开始存储分子数据 - 节点ID: {node_id}, 文件: {filename}")
                 
-                # 1. 构建文件路径
-                input_dir = folder_paths.get_input_directory()
-                file_path = os.path.join(input_dir, folder, filename)
-                
-                if not os.path.exists(file_path):
-                    logger.error(f"🚨 分子文件不存在: {file_path}")
-                    return None
-                
-                # 2. 读取和解析文件
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                # 1. 获取文件内容
+                if content is None:
+                    # 从文件读取
+                    input_dir = folder_paths.get_input_directory()
+                    file_path = os.path.join(input_dir, folder, filename)
+                    
+                    if not os.path.exists(file_path):
+                        logger.error(f"🚨 分子文件不存在: {file_path}")
+                        return None
+                    
+                    # 2. 读取和解析文件
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    file_stats = {
+                        "size": os.path.getsize(file_path),
+                        "modified": os.path.getmtime(file_path),
+                        "lines": len(content.split('\n')),
+                        "chars": len(content)
+                    }
+                else:
+                    # 使用提供的内容（来自上传）
+                    logger.info(f"🚀 使用提供的分子文件内容 - 长度: {len(content)} 字符")
+                    
+                    # 计算文件大小 - 安全处理不同类型的内容
+                    if isinstance(content, str):
+                        content_size = len(content.encode('utf-8'))
+                    elif isinstance(content, (bytes, bytearray)):
+                        content_size = len(content)
+                        # 确保content是字符串
+                        content = content.decode('utf-8') if isinstance(content, (bytes, bytearray)) else content
+                    else:
+                        content_size = len(str(content))
+                        content = str(content)
+                    
+                    file_stats = {
+                        "size": content_size,
+                        "modified": time.time(),
+                        "lines": len(content.split('\n')),
+                        "chars": len(content)
+                    }
                 
                 # 3. 创建分子数据对象
                 molecular_data = {
@@ -88,12 +119,7 @@ class MolecularDataManager:
                     "metadata": cls._extract_metadata(content),
                     
                     # 文件统计信息
-                    "file_stats": {
-                        "size": os.path.getsize(file_path),
-                        "modified": os.path.getmtime(file_path),
-                        "lines": len(content.split('\n')),
-                        "chars": len(content)
-                    },
+                    "file_stats": file_stats,
                     
                     # 缓存信息
                     "cached_at": time.time(),
@@ -448,9 +474,9 @@ class MolecularDataManager:
 molecular_memory = MolecularDataManager()
 
 # 🔧 便捷函数（兼容现有代码）
-def store_molecular_data(node_id: str, filename: str, folder: str = "molecules", instance_id: str = None):
+def store_molecular_data(node_id: str, filename: str, folder: str = "molecules", instance_id: str = None, content: str = None):
     """便捷的存储函数"""
-    return molecular_memory.store_molecular_data(node_id, filename, folder, instance_id)
+    return molecular_memory.store_molecular_data(node_id, filename, folder, instance_id, content)
 
 def get_molecular_data(node_id: str):
     """便捷的获取函数"""
