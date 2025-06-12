@@ -10,7 +10,11 @@
       "Bash(find:*)",
       "Bash(rg:*)",
       "Bash(ls:*)",
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(node:*)",
+      "Bash(for:*)",
+      "Bash(do echo \"Checking $file...\")",
+      "Bash(done)"
     ],
     "deny": []
   }
