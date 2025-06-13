@@ -11,8 +11,9 @@
 ALCHEM_PropBtn/
 ├── backend/                    # 后端核心模块
 │   ├── molecular_memory.py     # ✅ 内存管理系统
-│   ├── molecular_api.py        # ✅ RESTful API处理器
-│   └── molecular_utils.py      # ✅ 方案B核心工具 (NEW)
+│   ├── molecular_api.py        # ✅ 业务逻辑处理器
+│   ├── molecular_utils.py      # ✅ 方案B核心工具
+│   └── api_routes.py           # ✅ API路由定义 (NEW)
 ├── nodes/                      # 节点定义
 │   ├── test_simple_node.py     # ✅ 测试验证节点
 │   ├── standard_molecular_node.py # ✅ 标准开发模板
