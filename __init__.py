@@ -41,7 +41,7 @@ logger.info("🎯 ALCHEM_PropBtn: 使用方案B架构 - 节点主动数据获取
 
 # 注册API路由
 try:
-    from .backend.api_routes import register_api_routes
+    from .backend.api import register_api_routes
     register_api_routes()
     logger.info("✅ ALCHEM_PropBtn: API路由注册成功")
 except ImportError as e:
