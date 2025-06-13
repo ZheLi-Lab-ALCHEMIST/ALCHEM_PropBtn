@@ -249,23 +249,89 @@ export class MolecularDataProcessor {
         }
     }
     
-    // 生成唯一节点ID
+    // 生成唯一节点ID (支持多tab)
     generateUniqueNodeId(node) {
+        // 🔧 关键修复：生成tab感知的唯一ID
+        const tabId = this.getTabId(node);
+        
         // 检查是否有ComfyUI的唯一标识符
         if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
-            // QUIET: console.log(`🔧 Using ComfyUI unique_id: ${node.graph.runningContext.unique_id}`);
-            return node.graph.runningContext.unique_id;
+            const baseId = node.graph.runningContext.unique_id;
+            const tabAwareId = `${tabId}_${baseId}`;
+            console.log(`🔧 3D显示Tab感知ID: ${node.id} → ${tabAwareId} (runningContext)`);
+            return tabAwareId;
         } else if (node._id) {
-            // QUIET: console.log(`🔧 Using node._id: ${node._id}`);
-            return node._id;
+            const tabAwareId = `${tabId}_${node._id}`;
+            console.log(`🔧 3D显示Tab感知ID: ${node.id} → ${tabAwareId} (node._id)`);
+            return tabAwareId;
         } else {
             // 使用节点的内存地址或其他唯一标识
             if (!node._uniqueDisplayId) {
-                node._uniqueDisplayId = `${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                node._uniqueDisplayId = `${tabId}_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
-            // QUIET: console.log(`🔧 Generated unique display ID: ${node._uniqueDisplayId}`);
+            console.log(`🔧 3D显示Tab感知ID: ${node.id} → ${node._uniqueDisplayId} (generated)`);
             return node._uniqueDisplayId;
         }
+    }
+    
+    // 🆕 获取当前tab的唯一标识
+    getTabId(node) {
+        try {
+            // 方法1: 通过graph对象获取tab信息
+            if (node.graph && node.graph.canvas && node.graph.canvas.canvas) {
+                const canvasId = node.graph.canvas.canvas.id || 'default';
+                return `tab_${canvasId}`;
+            }
+            
+            // 方法2: 通过app对象获取当前tab
+            if (window.app && window.app.graph && window.app.graph.canvas) {
+                const canvasElement = window.app.graph.canvas.canvas;
+                if (canvasElement && canvasElement.id) {
+                    return `tab_${canvasElement.id}`;
+                }
+            }
+            
+            // 方法3: 通过DOM查找活跃tab
+            const activeTabButton = document.querySelector('.comfy-tab-button.active');
+            if (activeTabButton) {
+                const tabText = activeTabButton.textContent.trim();
+                const tabHash = this.hashString(tabText);
+                return `tab_${tabHash}`;
+            }
+            
+            // 方法4: 通过URL hash或其他方式
+            if (window.location.hash) {
+                const hashId = window.location.hash.replace('#', '');
+                return `tab_${hashId}`;
+            }
+            
+            // 方法5: 回退到graph内存地址的hash
+            if (node.graph) {
+                const graphHash = this.hashString(JSON.stringify({
+                    nodeCount: node.graph.nodes?.length || 0,
+                    timestamp: node.graph.runningTime || Date.now()
+                }));
+                return `tab_${graphHash}`;
+            }
+            
+            // 最后回退
+            return 'tab_default';
+            
+        } catch (error) {
+            console.warn('🔧 获取tab ID失败，使用默认值:', error);
+            return 'tab_default';
+        }
+    }
+    
+    // 🆕 简单字符串hash函数
+    hashString(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // 转换为32位整数
+        }
+        return Math.abs(hash).toString(36).substr(0, 8);
     }
     
     // 检查是否是3D显示输入

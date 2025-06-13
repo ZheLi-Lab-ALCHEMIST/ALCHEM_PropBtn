@@ -243,7 +243,52 @@ const getExtensionStatus = () => {
 };
 
 // 全局调试接口
-window.getCustomWidgetStatus = getExtensionStatus;
+window.getCustomWidgetStatus = () => {
+    const status = getExtensionStatus();
+    status.multitab_fix_enabled = true;  // 🔧 标记多tab修复已启用
+    return status;
+};
+
+// 🆕 多tab调试工具
+window.debugMultiTabMemory = () => {
+    console.log("🔧 多Tab内存调试工具");
+    console.log("====================");
+    
+    // 显示当前所有节点的ID生成
+    if (window.app && window.app.graph && window.app.graph.nodes) {
+        console.log(`当前图中有 ${window.app.graph.nodes.length} 个节点:`);
+        window.app.graph.nodes.forEach(node => {
+            if (node.widgets && node.widgets.some(w => w.name && w.name.includes('molecular'))) {
+                console.log(`  节点 ${node.id} (${node.type}): 包含分子上传功能`);
+            }
+        });
+    }
+    
+    // 检查后端内存状态
+    fetch('/alchem_propbtn/api/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.data.cache) {
+                const cache = data.data.cache;
+                console.log(`\n后端内存状态:`);
+                console.log(`  总节点数: ${cache.total_nodes || 0}`);
+                console.log(`  缓存大小: ${(cache.total_cache_size || 0)} 字符`);
+                if (cache.nodes && cache.nodes.length > 0) {
+                    console.log(`  节点列表:`);
+                    cache.nodes.forEach(node => {
+                        console.log(`    - ${node.node_id}: ${node.filename} (${node.atoms} 原子)`);
+                    });
+                }
+            }
+        })
+        .catch(e => console.error('获取后端状态失败:', e));
+    
+    console.log("\n使用方法:");
+    console.log("1. 在tab_A中上传分子文件");
+    console.log("2. 切换到tab_B，上传另一个分子文件");
+    console.log("3. 切换回tab_A，点击3D显示按钮");
+    console.log("4. 检查是否能正常显示tab_A的分子");
+};
 
 // 全局QUIET日志函数 - 供所有模块使用
 window.QUIET_LOG = (message) => {

@@ -496,7 +496,10 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
                 throw new Error('无法获取节点ID，上传失败');
             }
             
-            logger.info(`🎯 Uploading for node ID: ${node.id}`, 'molecularUpload');
+            // 🔧 修复：生成tab感知的唯一节点ID
+            const tabAwareNodeId = generateTabAwareNodeId(node);
+            
+            logger.info(`🎯 Uploading for node ID: ${node.id} (tab-aware: ${tabAwareNodeId})`, 'molecularUpload');
             
             // 显示进度条和信息容器
             progressContainer.style.display = 'block';
@@ -523,7 +526,7 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             
             // 🚀 步骤1：上传到后端内存（快速访问）
             infoContainer.innerHTML = `🚀 正在上传到后端内存 ${analysis.icon} ${analysis.format} 文件...`;
-            const uploadResult = await uploadMolecularFileToBackend(file, molecularFolder, node.id);
+            const uploadResult = await uploadMolecularFileToBackend(file, molecularFolder, tabAwareNodeId);
             progressBar.style.width = '70%';
             
             // 🚀 后端内存上传完成，获取结果信息
@@ -547,7 +550,7 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
                 
                 // 重新上传到后端内存，使用实际的文件名
                 try {
-                    const syncResult = await uploadMolecularFileToBackend(file, molecularFolder, node.id, actualFileName);
+                    const syncResult = await uploadMolecularFileToBackend(file, molecularFolder, tabAwareNodeId, actualFileName);
                     if (syncResult.success) {
                         logger.info(`✅ Backend memory synced with actual filename: ${actualFileName}`, 'molecularUpload');
                         // 更新backendData为同步后的结果
@@ -584,7 +587,7 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             
             // 显示成功信息（双重上传完成）
             infoContainer.innerHTML = `🎉 双重上传成功: <span class="molecular-format-indicator">${formatInfo}</span>
-                <br><small style="color: #4fc3f7;">🚀 内存: 节点 ${node.id} | 💾 文件: ${fileSystemResult}</small>
+                <br><small style="color: #4fc3f7;">🚀 内存: 节点 ${tabAwareNodeId} | 💾 文件: ${fileSystemResult}</small>
                 <br><small style="color: #81c784;">大小: ${(backendData.file_size / 1024).toFixed(1)} KB | 原子数: ${backendData.atoms}</small>`;
             
             // 隐藏进度条，保留信息显示一段时间
@@ -599,7 +602,7 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             
             logger.info(`🚀 Successfully completed dual upload:`, 'molecularUpload');
             logger.info(`   💾 File system: ${fileSystemResult}`, 'molecularUpload');
-            logger.info(`   🚀 Backend memory: ${backendData.filename} -> node ${node.id}`, 'molecularUpload');
+            logger.info(`   🚀 Backend memory: ${backendData.filename} -> node ${tabAwareNodeId}`, 'molecularUpload');
             
         } catch (error) {
             logger.error('🧪 Molecular upload failed:', 'molecularUpload');
@@ -643,6 +646,79 @@ const findNodeByWidget = (widget) => {
     
     logger.warn('🧪 Could not find node for widget:', 'molecularUpload');
     return null;
+};
+
+// 🆕 生成tab感知的节点ID（修复多tab bug）
+const generateTabAwareNodeId = (node) => {
+    try {
+        const tabId = getTabId(node);
+        const tabAwareId = `${tabId}_${node.id}`;
+        logger.info(`🔧 Tab感知ID生成: 原始ID=${node.id} → Tab感知ID=${tabAwareId}`, 'molecularUpload');
+        return tabAwareId;
+    } catch (error) {
+        logger.warn('🔧 生成tab感知ID失败，使用默认:', error);
+        return `default_${node.id}`;
+    }
+};
+
+// 🆕 获取当前tab的唯一标识
+const getTabId = (node) => {
+    try {
+        // 方法1: 通过graph对象获取tab信息
+        if (node.graph && node.graph.canvas && node.graph.canvas.canvas) {
+            const canvasId = node.graph.canvas.canvas.id || 'default';
+            return `tab_${canvasId}`;
+        }
+        
+        // 方法2: 通过app对象获取当前tab
+        if (window.app && window.app.graph && window.app.graph.canvas) {
+            const canvasElement = window.app.graph.canvas.canvas;
+            if (canvasElement && canvasElement.id) {
+                return `tab_${canvasElement.id}`;
+            }
+        }
+        
+        // 方法3: 通过DOM查找活跃tab
+        const activeTabButton = document.querySelector('.comfy-tab-button.active');
+        if (activeTabButton) {
+            const tabText = activeTabButton.textContent.trim();
+            const tabHash = hashString(tabText);
+            return `tab_${tabHash}`;
+        }
+        
+        // 方法4: 通过URL hash或其他方式
+        if (window.location.hash) {
+            const hashId = window.location.hash.replace('#', '');
+            return `tab_${hashId}`;
+        }
+        
+        // 方法5: 回退到graph内存地址的hash
+        if (node.graph) {
+            const graphHash = hashString(JSON.stringify({
+                nodeCount: node.graph.nodes?.length || 0,
+                timestamp: node.graph.runningTime || Date.now()
+            }));
+            return `tab_${graphHash}`;
+        }
+        
+        // 最后回退
+        return 'tab_default';
+        
+    } catch (error) {
+        logger.warn('🔧 获取tab ID失败，使用默认值:', error);
+        return 'tab_default';
+    }
+};
+
+// 🆕 简单字符串hash函数
+const hashString = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // 转换为32位整数
+    }
+    return Math.abs(hash).toString(36).substr(0, 8);
 };
 
 // 创建分子文件选择器
