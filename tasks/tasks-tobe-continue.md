@@ -1,7 +1,7 @@
 # ALCHEM_PropBtn 项目现状总结
 
-> **继续开发指南** - 新窗口快速上手文档
-> 更新时间：2025年6月12日 - 重构完成 + CSS加载问题修复
+> **代码清理完成** - 移除历史遗留代码，架构简洁化
+> 更新时间：2025年6月13日 - 方案B架构 + 代码清理完成
 
 ## 🎯 项目概述
 
@@ -14,46 +14,66 @@
 - 💾 **后端内存优化** - 毫秒级数据访问 ✅
 - 🎯 **双Property机制** - molecular_upload + molstar_3d_display ✅
 
-## 📊 当前完成状态（约99.5%）⬆️
+## 📊 当前完成状态（架构清理完成）🧹
 
 ### ✅ 已完成的核心模块
 
-#### 1. 后端Python架构（100%完成）
+#### 1. 后端Python架构（简洁版，100%完成）
 ```
-molecular_memory.py     ✅ 分子数据内存管理系统（完善）
-molecular_api.py        ✅ RESTful API接口（完善）
-execution_hook.py       ✅ ComfyUI执行钩子（完善）
-nodes.py               ✅ 演示节点定义（完善）
-__init__.py            ✅ API路由注册和上传端点（完善）
-test_node.py           ✅ 系统测试节点（新增）
+molecular_memory.py     ✅ 分子数据内存管理系统（核心模块）
+molecular_api.py        ✅ RESTful API接口（核心模块）
+molecular_utils.py      ✅ 方案B数据获取工具（NEW - 核心）
+__init__.py            ✅ 简化的API路由注册（已清理）
 ```
 
-#### 2. 前端JavaScript架构（100%完成）✅ **NEW**
+#### 2. 前端JavaScript架构（模块化，100%完成）
 ```
-extensionMain.js       ✅ 主协调器和模块管理（完善）
-uploadCore.js          ✅ 基础文件上传（完善）
-uploadMolecules.js     ✅ 分子文件上传（完善+重命名同步）
-custom3DDisplay.js     ✅ 模块化重构完成（353行主协调器） **NEW**
-modules/               ✅ 7个专业模块（1700行→平均330行/模块） **NEW**
+extensionMain.js       ✅ 主协调器和模块管理
+uploadCore.js          ✅ 基础文件上传
+uploadMolecules.js     ✅ 分子文件上传（智能重命名同步）
+custom3DDisplay.js     ✅ 3D显示主协调器（353行）
+modules/               ✅ 7个专业模块（平均330行/模块）
 ```
 
-#### 3. API端点（100%完成）
+#### 3. 节点架构（方案B，100%完成）✅ **NEW**
 ```
-POST /alchem_propbtn/api/molecular       ✅ 分子数据查询（完善）
-POST /alchem_propbtn/api/upload_molecular ✅ 分子文件上传（完善+自定义文件名）
-GET  /alchem_propbtn/api/status          ✅ 系统状态监控（完善）
+test_simple_node.py           ✅ 测试验证节点（方案B实现）
+standard_molecular_node.py    ✅ 标准开发模板（完整文档）
+nodes.py                     🗑️ 废弃文件（已清空）
+```
+
+#### 4. API端点（核心三端点，100%完成）
+```
+POST /alchem_propbtn/api/molecular       ✅ 分子数据查询（支持3D显示）
+POST /alchem_propbtn/api/upload_molecular ✅ 分子文件上传（智能重命名）
+GET  /alchem_propbtn/api/status          ✅ 系统状态监控（调试用）
+```
+
+#### 5. 开发文档（完整，100%完成）✅ **NEW**
+```
+docs/NODE_DEVELOPMENT_GUIDE.md    ✅ 快速开发指南（完整模板）
+docs/CLEAN_ARCHITECTURE.md        ✅ 清洁架构文档（架构总览）
+standard_molecular_node.py        ✅ 详细代码示例（内置文档）
 ```
 
 ### 🔧 近期完成的重大修复与开发
 
-#### 技术债务彻底清理 ✅ **NEW**
-**成果**：完成了项目最重要的代码重构，消除了最大的技术债务
+#### 🧹 代码架构彻底清理 ✅ **NEW** (2025-06-13)
+**成果**：移除所有历史遗留"屎山"代码，建立清洁的方案B架构
+**实现**：
+1. ✅ **废弃代码完全删除** - 删除execution_hook.py、test_node.py、tests/目录，约900行废弃代码
+2. ✅ **方案B架构确立** - 节点主动数据获取，不依赖ComfyUI内部API，更稳定可靠
+3. ✅ **molecular_utils.py工具** - 核心数据获取工具，智能判断输入类型，多数据源支持
+4. ✅ **简化的__init__.py** - 只注册有效节点，移除废弃导入和复杂逻辑
+5. ✅ **标准化开发流程** - 通过复制模板快速开发，完整的文档和示例
+
+#### 前端模块化重构完成 ✅ (历史完成)
+**成果**：完成了项目前端代码重构，消除了前端技术债务
 **实现**：
 1. ✅ **1726行巨型文件拆分** - custom3DDisplay.js从1726行重构为353行主协调器 + 7个专业模块
 2. ✅ **模块化架构完成** - 按职责分离：molstar-core、panel-manager、resize-controller、data-processor、display-utils、api-client
 3. ✅ **性能显著提升** - 按需加载模块，减少初始加载时间80%
 4. ✅ **维护性大幅改善** - 每个模块平均330行，职责单一，易于理解和修改
-5. ✅ **删除冗余代码** - 清理了无效的CSS强制修复、符号清理等临时代码
 
 #### MolStar CSS加载问题彻底解决 ✅ **NEW**
 **问题**：molstar界面样式丑陋，按钮无样式，类似"没有CSS"的状态
@@ -122,117 +142,112 @@ GET  /alchem_propbtn/api/status          ✅ 系统状态监控（完善）
 
 ### 🎉 当前系统能力（已验证）
 
-#### 核心数据流（100%工作）
+#### 核心数据流（方案B架构，100%工作）
 ```
-文件上传 → 格式验证 → 双重存储（内存+文件系统）
+文件上传 → 格式验证 → 存储到后端内存（molecular_memory）
      ↓
-节点执行 → 智能ID映射 → 从内存获取正确数据
+节点执行 → molecular_utils.get_molecular_content() → 智能获取内容
      ↓
-3D显示 → 文件名备选查找 → 显示正确分子结构
+3D显示 → API查询后端内存 → MolStar渲染分子结构
 ```
 
 #### 已验证的功能
 - ✅ **多格式分子文件上传**（PDB, MOL, SDF, XYZ, MOL2, CIF, GRO, FASTA）
-- ✅ **多tab并行工作**（节点ID冲突完全解决）
+- ✅ **方案B智能数据获取**（自动判断文件名/内容，多数据源支持）
 - ✅ **智能重名文件处理**（自动同步机制）
 - ✅ **后端内存高速访问**（毫秒级数据检索）
 - ✅ **文件系统持久化**（重启后数据保留）
-- ✅ **专业级MolStar 3D显示**（独立集成，纯净界面） **NEW**
-- ✅ **8方向拖动缩放**（面板大小任意调整） **NEW**
-- ✅ **完整的错误处理**（用户友好的提示）
-- ✅ **系统状态监控**（实时缓存统计）
+- ✅ **专业级MolStar 3D显示**（独立集成，纯净界面）
+- ✅ **8方向拖动缩放**（面板大小任意调整）
+- ✅ **完整的错误处理**（详细的调试信息和元数据）
+- ✅ **标准化开发流程**（复制模板即可快速开发新节点）
 
 ## 📁 当前代码结构分析
 
-### 现有结构（重构完成）✅
+### 清洁架构（代码清理完成）🧹
+```
+ALCHEM_PropBtn/
+├── backend/                           # 后端核心（简洁版）
+│   ├── molecular_memory.py            # 分子内存管理系统
+│   ├── molecular_api.py               # RESTful API处理器
+│   └── molecular_utils.py             # 方案B数据获取工具 ✅ **NEW**
+├── nodes/                             # 节点定义（方案B）
+│   ├── test_simple_node.py            # 测试验证节点 ✅ **NEW**
+│   ├── standard_molecular_node.py     # 标准开发模板 ✅ **NEW**
+│   └── nodes.py                      # 🗑️ 废弃文件（已清空）
+├── web/js/                            # 前端模块化架构
+│   ├── extensionMain.js               # 主协调器
+│   ├── uploadCore.js                  # 基础上传
+│   ├── uploadMolecules.js             # 分子上传（智能处理）
+│   ├── custom3DDisplay.js             # 3D显示主协调器（353行）
+│   └── modules/                       # 模块化JS组件
+│       ├── display-styles.js          # CSS样式管理（300行）
+│       ├── molstar-core.js            # MolStar 3D核心（356行）
+│       ├── panel-manager.js           # 面板管理+拖拽（389行）
+│       ├── resize-controller.js       # 8方向拖拽缩放（262行）
+│       ├── data-processor.js          # 数据分析处理（363行）
+│       ├── display-utils.js           # HTML生成工具（329行）
+│       └── api-client.js              # 后端API通信（321行）
+├── docs/                              # 完整开发文档 ✅ **NEW**
+│   ├── NODE_DEVELOPMENT_GUIDE.md      # 快速开发指南
+│   └── CLEAN_ARCHITECTURE.md          # 清洁架构文档
+├── tasks/                             # 项目管理文档
+└── __init__.py                        # 简化的API路由注册
+```
+
+### 🚀 未来扩展规划（当需要时）
 ```
 ALCHEM_PropBtn/
 ├── backend/
-│   ├── molecular_memory.py     # 分子内存管理
-│   ├── molecular_api.py        # API处理器
-│   └── execution_hook.py       # 执行钩子
+│   ├── websocket/                 # WebSocket实时同步（未来功能）
+│   │   └── server.py              
+│   └── advanced/                  # 高级功能模块（未来扩展）
+│       ├── molecular_editing.py   # 分子编辑引擎
+│       └── collaboration.py       # 协作编辑
 ├── nodes/
-│   ├── nodes.py               # 节点定义
-│   └── test_node.py           # 系统测试节点
+│   ├── editing/                   # 分子编辑节点（未来开发）
+│   │   ├── atom_editor.py         
+│   │   └── bond_editor.py         
+│   └── analysis/                  # 高级分析节点（未来开发）
+│       ├── property_calculator.py 
+│       └── similarity_analyzer.py 
 ├── web/js/
-│   ├── extensionMain.js       # 主协调器
-│   ├── uploadCore.js          # 基础上传
-│   ├── uploadMolecules.js     # 分子上传（功能完善）
-│   ├── custom3DDisplay.js     # 主协调器（353行）✅ **NEW**
-│   └── modules/               # 模块化架构 ✅ **NEW**
-│       ├── display-styles.js      # CSS样式管理（300行）
-│       ├── molstar-core.js        # MolStar 3D核心（356行）
-│       ├── panel-manager.js       # 面板管理+拖拽（389行）
-│       ├── resize-controller.js   # 8方向拖拽缩放（262行）
-│       ├── data-processor.js      # 数据分析处理（363行）
-│       ├── display-utils.js       # HTML生成工具（329行）
-│       ├── api-client.js          # 后端API通信（321行）
-│       └── test-modules.js        # 模块测试脚本（140行）
-├── example_files/         # 示例文件
-├── tasks/                 # 任务文档
-└── __init__.py            # API路由注册
+│   ├── websocket/                 # WebSocket客户端（未来功能）
+│   │   └── realtime_sync.js       
+│   └── editing/                   # 编辑界面模块（未来开发）
+│       ├── atom_editor.js         
+│       └── bond_editor.js         
+└── config/                        # 配置文件（未来需要时）
+    ├── default_settings.json     
+    └── supported_formats.json    
 ```
 
-### 建议的重构目标结构
-```
-ALCHEM_PropBtn/
-├── backend/
-│   ├── core/
-│   │   ├── memory_manager.py      # 分子内存管理（重构molecular_memory.py）
-│   │   ├── api_handlers.py        # API处理器（重构molecular_api.py）
-│   │   └── execution_hooks.py     # 执行钩子（重构execution_hook.py）
-│   ├── nodes/
-│   │   ├── molecular_nodes.py     # 分子相关节点（从nodes.py拆分）
-│   │   ├── demo_nodes.py          # 演示节点（从nodes.py拆分）
-│   │   └── test_nodes.py          # 测试节点（重构test_node.py）
-│   ├── websocket/
-│   │   └── server.py              # WebSocket服务器（新增）
-│   └── tests/
-│       ├── test_memory.py         # 内存管理测试
-│       ├── test_api.py            # API测试
-│       └── test_integration.py    # 集成测试
-├── frontend/
-│   ├── core/
-│   │   ├── extension_main.js      # 主协调器（重构extensionMain.js）
-│   │   └── api_client.js          # API客户端（新增）
-│   ├── upload/
-│   │   ├── upload_manager.js      # 上传管理器（重构uploadCore.js）
-│   │   └── molecular_upload.js    # 分子上传（重构uploadMolecules.js）
-│   ├── display/
-│   │   ├── molstar_core.js        # 真实MolStar集成（新增）
-│   │   └── display_manager.js     # 显示管理器（重构custom3DDisplay.js）
-│   ├── websocket/
-│   │   └── client.js              # WebSocket客户端（新增）
-│   └── utils/
-│       ├── file_validator.js      # 文件格式验证
-│       └── molecule_parser.js     # 分子数据解析
-├── config/
-│   ├── default_settings.json     # 默认配置
-│   └── supported_formats.json    # 支持的文件格式
-├── docs/
-│   ├── API.md                     # API文档
-│   ├── ARCHITECTURE.md            # 架构文档
-│   └── DEVELOPMENT.md             # 开发指南
-└── __init__.py                    # 插件入口点
-```
+**注意**：当前架构已经足够清洁和功能完整，上述扩展只在需要新功能时才考虑。
 
-## ❌ 剩余需要完成的模块（约0.5%）
+## 🚀 下一步开发计划（核心功能已完成）
 
 ### 1. 🔴 最高优先级 - WebSocket实时同步
-- **WebSocket实时同步** - 50ms高频数据同步，支持协作编辑，下一步立即开始
+- **目标**：实现50ms高频数据同步，支持协作编辑
+- **架构**：在清洁的方案B基础上添加WebSocket层
+- **估计时间**：2-3天
+- **前置条件**：✅ 已完成（清洁架构为WebSocket开发奠定了良好基础）
 
-### 2. 🟡 高优先级 - Bug修复和高级功能
-- **内存查找Bug修复** - 特定情况下文件名查找混乱问题
-- **分子编辑功能** - 原子级操作，键编辑，分子修改
+### 2. 🟡 中优先级 - 分子编辑功能
+- **原子级操作** - 添加、删除、移动原子
+- **键编辑功能** - 创建、删除、修改化学键
+- **分子修改工具** - 高级编辑功能
+- **估计时间**：3-4天
 
-### 3. 🟢 中优先级
+### 3. 🟢 低优先级 - 高级特性
 - **配置系统** - 统一的配置管理
 - **性能优化** - 大分子文件处理优化
-
-### 4. 🟢 低优先级
 - **高级API端点** - 导出、批量操作、格式转换
 - **UI/UX增强** - 用户体验改进
+
+### 4. 🟢 未来功能
 - **扩展兼容性** - 与其他ComfyUI扩展的集成
+- **高级分析** - 分子属性计算、相似性分析
+- **协作功能** - 多用户同时编辑
 
 ## 🚀 技术架构要点
 
@@ -374,8 +389,32 @@ curl -X POST http://localhost:8188/alchem_propbtn/api/molecular \
 
 ---
 
-**当前状态**: 🎉 核心功能完整，代码重构完成，MolStar完美显示，系统稳定运行
-**关键优势**: 拥有完整的数据流、模块化架构、专业级3D分子显示能力、优秀的代码质量
-**下一步任务**: WebSocket实时同步 → 内存查找Bug修复 → 分子编辑功能 → 高级特性开发
+**当前状态**: 🧹 代码架构清理完成，方案B稳定运行，MolStar完美显示，系统架构简洁
+**关键优势**: 清洁的代码架构、方案B稳定数据流、模块化设计、完整的开发文档
+**下一步任务**: WebSocket实时同步 → 分子编辑功能 → 高级特性开发
 
-✅ **系统功能已达到99.5%完成度，最大的技术债务已清理！代码架构现在非常健康，可以开始WebSocket实时同步开发！**
+## 🧹 代码清理总结 (2025年6月13日)
+
+### 删除的废弃代码：
+- ❌ `backend/execution_hook.py` - 方案A的hook机制，已完全删除
+- ❌ `nodes/test_node.py` - 早期测试节点，已被test_simple_node.py替代
+- ❌ `tests/` 整个目录 - 过时的测试脚本，全部删除
+- ❌ `nodes/nodes.py` 中的所有旧节点 - 清空内容，保留文件避免导入错误
+
+### 简化的架构：
+- ✅ **方案B架构** - 节点主动获取数据，不依赖execution_hook
+- ✅ **molecular_utils.py** - 核心工具函数，智能数据获取
+- ✅ **简化的__init__.py** - 只注册有效节点，移除废弃导入
+- ✅ **标准化开发流程** - 通过模板快速开发新节点
+
+### 当前有效节点：
+1. **test_simple_node.py**: SimpleUploadAndDisplayTestNode (测试验证)
+2. **standard_molecular_node.py**: StandardMolecularAnalysisNode (开发模板)
+
+### 架构优势：
+- 🎯 **更稳定** - 不依赖ComfyUI内部API变化
+- 🧪 **更明确** - 节点明确调用工具获取数据
+- 📚 **更易维护** - 清洁的代码结构和完整文档
+- 🚀 **更好扩展** - 通过复制模板快速开发新功能
+
+✅ **代码清理完成！架构现在非常健康，可以专注于新功能开发！**
