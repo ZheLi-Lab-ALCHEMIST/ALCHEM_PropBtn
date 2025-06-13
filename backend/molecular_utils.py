@@ -71,7 +71,7 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
         content = None
         
         try:
-            from .molecular_memory import get_cache_status, get_molecular_data
+            from .memory import get_cache_status, get_molecular_data
             
             # 查找内存中的同名文件
             cache_status = get_cache_status()

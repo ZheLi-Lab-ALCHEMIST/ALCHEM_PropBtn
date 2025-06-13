@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # 导入内存管理
 try:
-    from .molecular_memory import (
+    from .memory import (
         get_molecular_data, 
         store_molecular_data,
         get_cache_status, 
