@@ -1,13 +1,5 @@
 import { app } from "../../../scripts/app.js";
 
-// 导入上传核心模块
-import { 
-    initUploadCore,
-    createCustomUploadWidget,
-    processUploadNodes,
-    handleUploadNodeCreated
-} from "./uploadCore.js";
-
 // 导入分子文件上传模块
 import {
     initMolecularUpload,
@@ -44,11 +36,6 @@ const EXTENSION_CONFIG = {
     
     // 功能模块注册表 - 每个模块有独立的标识和显示名称
     modules: {
-        upload: {
-            name: "📁 Upload Core",
-            description: "File upload functionality with drag & drop support",
-            version: "1.0.0"
-        },
         molecularUpload: {
             name: "🧪 Molecular Upload",
             description: "Specialized molecular file upload with format validation",
@@ -103,10 +90,6 @@ const initializeModules = () => {
     try {
         logger.info(`Initializing ${EXTENSION_CONFIG.displayName} v${EXTENSION_CONFIG.version}`);
         
-        // 初始化上传核心模块
-        initUploadCore();
-        logger.info("Upload core module initialized", 'upload');
-        
         // 初始化分子文件上传模块
         initMolecularUpload();
         logger.info("Molecular upload module initialized", 'molecularUpload');
@@ -126,7 +109,6 @@ const initializeModules = () => {
 const getCustomWidgets = () => {
     try {
         const widgets = {
-            CUSTOMUPLOAD: createCustomUploadWidget(),
             MOLECULARUPLOAD: createMolecularUploadWidget(),
             MOLSTAR3DDISPLAY: createMolstar3DDisplayWidget()
         };
@@ -148,14 +130,6 @@ const beforeRegisterNodeDef = (nodeType, nodeData) => {
 
         let processed = false;
 
-        // 处理上传节点
-        const uploadResult = processUploadNodes(nodeType, nodeData);
-        if (uploadResult) {
-            required.upload = uploadResult.upload;
-            logger.debug(`Processed upload node: ${nodeData.name}`, 'upload');
-            processed = true;
-        }
-        
         // 处理分子文件上传节点
         const molecularUploadResult = processMolecularUploadNodes(nodeType, nodeData);
         if (molecularUploadResult) {
@@ -183,9 +157,6 @@ const beforeRegisterNodeDef = (nodeType, nodeData) => {
 // 处理节点创建后的逻辑
 const nodeCreated = (node) => {
     try {
-        // 处理上传节点
-        handleUploadNodeCreated(node);
-        
         // 处理3D显示节点
         handle3DDisplayNodeCreated(node);
         

@@ -227,7 +227,20 @@ export const show3DMolecularView = async (node, inputName) => {
         
     } catch (error) {
         console.error('🚨 Error in modular 3D display:', error);
-        // 静默处理错误，不显示错误提示避免挡住界面
+        
+        // 显示错误信息
+        const errorContent = displayUtils.generateErrorHTML(
+            error.message,
+            [
+                '检查分子文件格式是否正确',
+                '确认文件已成功上传',
+                '尝试重新执行节点',
+                '查看浏览器控制台获取详细错误信息'
+            ]
+        );
+        
+        panelManager.displayData(errorContent);
+        displayUtils.showNotification(`3D显示出错: ${error.message}`, 'error');
     }
 };
 
