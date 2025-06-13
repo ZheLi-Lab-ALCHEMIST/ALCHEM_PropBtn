@@ -1,6 +1,30 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
-import { EXTENSION_CONFIG, logger } from "./extensionMain.js";
+
+// 简单的日志函数，避免循环依赖
+const logger = {
+    info: (message, module = 'molecularUpload') => {
+        if (typeof message === 'string') {
+            console.log(`[${module}] ℹ️ ${message}`);
+        } else {
+            console.log(`[molecularUpload] ℹ️ ${message}`);
+        }
+    },
+    error: (message, module = 'molecularUpload') => {
+        if (typeof message === 'string') {
+            console.error(`[${module}] ❌ ${message}`);
+        } else {
+            console.error(`[molecularUpload] ❌ ${message}`);
+        }
+    },
+    warn: (message, module = 'molecularUpload') => {
+        if (typeof message === 'string') {
+            console.warn(`[${module}] ⚠️ ${message}`);
+        } else {
+            console.warn(`[molecularUpload] ⚠️ ${message}`);
+        }
+    }
+};
 
 /**
  * 🧪 分子文件上传模块 (uploadMolecules.js)

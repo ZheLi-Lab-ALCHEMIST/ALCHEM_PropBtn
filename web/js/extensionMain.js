@@ -109,10 +109,17 @@ const initializeModules = () => {
 // 注册所有自定义Widgets
 const getCustomWidgets = () => {
     try {
-        const widgets = {
-            MOLECULARUPLOAD: createMolecularUploadWidget(),
-            MOLSTAR3DDISPLAY: createMolstar3DDisplayWidget()
-        };
+        // 延迟调用，确保模块已完全初始化
+        const widgets = {};
+        
+        // 安全地获取widget创建函数
+        if (typeof createMolecularUploadWidget === 'function') {
+            widgets.MOLECULARUPLOAD = createMolecularUploadWidget();
+        }
+        
+        if (typeof createMolstar3DDisplayWidget === 'function') {
+            widgets.MOLSTAR3DDISPLAY = createMolstar3DDisplayWidget();
+        }
         
         logger.info(`Registered ${Object.keys(widgets).length} custom widgets: ${Object.keys(widgets).join(', ')}`);
         return widgets;
@@ -265,6 +272,9 @@ app.registerExtension({
     
     async getCustomWidgets() {
         try {
+            // 确保所有模块都已初始化
+            await new Promise(resolve => setTimeout(resolve, 0));
+            
             const widgets = getCustomWidgets();
             updateStatus('widget_registered', { count: Object.keys(widgets).length });
             return widgets;

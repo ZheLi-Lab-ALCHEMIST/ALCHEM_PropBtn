@@ -16,7 +16,8 @@
       "Bash(do echo \"Checking $file...\")",
       "Bash(done)",
       "Bash(/home/linuxbrew/.linuxbrew/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -n \"store_molecular_data|get_molecular_data|get_cache_status|clear_cache|set_active_node|get_active_node\" --type py)",
-      "Bash(diff:*)"
+      "Bash(diff:*)",
+      "Bash(awk:*)"
     ],
     "deny": []
   }

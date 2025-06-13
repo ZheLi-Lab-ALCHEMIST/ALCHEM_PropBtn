@@ -8,9 +8,10 @@ import { app } from "../../../scripts/app.js";
 
 // 导入合并后的模块
 import { loadMolstarLibrary, MolstarViewer, PDBUtils } from './modules/molstar-core.js';
-import { applyStyles, ALCHEM3DPanelManager, ResizeController, DisplayUtils } from './modules/ui-integrated.js';
+import { applyStyles, ALCHEM3DPanelManager, ResizeController } from './modules/ui-integrated.js';
+// DisplayUtils已删除 - 简化为直接显示分子数据
 import { MolecularDataProcessor } from './modules/data-processor.js';
-import { APIClient, RDKitMolstarIntegration, apiClient, rdkitIntegration } from './modules/api-client.js';
+import { APIClient, apiClient } from './modules/api-client.js';
 
 /**
  * 主协调器类 - 管理所有模块的交互
@@ -35,7 +36,7 @@ class ALCHEM3DDisplayCoordinator {
         // 初始化各模块
         this.panelManager = new ALCHEM3DPanelManager();
         this.dataProcessor = new MolecularDataProcessor();
-        this.displayUtils = new DisplayUtils();
+        // DisplayUtils已删除，简化为直接操作
         
         // 初始化面板管理器
         await this.panelManager.initialize();
@@ -54,19 +55,11 @@ class ALCHEM3DDisplayCoordinator {
         return this.dataProcessor;
     }
     
-    // 获取显示工具
-    getDisplayUtils() {
-        return this.displayUtils;
-    }
+    // DisplayUtils已删除
     
-    // 获取API客户端
+    // 获取API客户端（简化版）
     getAPIClient() {
         return apiClient;
-    }
-    
-    // 获取rdkit集成
-    getRDKitIntegration() {
-        return rdkitIntegration;
     }
     
     // 清理所有资源
@@ -75,15 +68,13 @@ class ALCHEM3DDisplayCoordinator {
             this.panelManager.destroy();
         }
         
-        if (this.displayUtils) {
-            this.displayUtils.cleanup();
-        }
+        // DisplayUtils清理已删除
         
         if (this.dataProcessor) {
             this.dataProcessor.clearCache();
         }
         
-        apiClient.clearAllCache();
+        // 简化版API客户端无需清理缓存
         
         this.isInitialized = false;
         // QUIET: console.log("🧪 ALCHEM 3D Display Coordinator destroyed");
@@ -102,17 +93,8 @@ export const show3DMolecularView = async (node, inputName) => {
     
     const panelManager = alchem3DCoordinator.getPanelManager();
     const dataProcessor = alchem3DCoordinator.getDataProcessor();
-    const displayUtils = alchem3DCoordinator.getDisplayUtils();
-    const rdkitIntegration = alchem3DCoordinator.getRDKitIntegration();
     
     try {
-        // 首先尝试使用现有的MolStar查看器
-        const usedExisting = await rdkitIntegration.tryUseExistingMolStarViewer(node, inputName);
-        if (usedExisting) {
-            // QUIET: console.log("🎯 Successfully used existing rdkit_molstar viewer");
-            return;
-        }
-        
         // QUIET: console.log("🎯 Using ALCHEM modular display system");
         
         // 获取分子输入数据
@@ -163,81 +145,35 @@ export const show3DMolecularView = async (node, inputName) => {
             // QUIET: console.log(`🧪 Found molecular data in frontend node memory`);
         }
         
-        // 步骤3：处理数据和显示
-        let displayContent = '';
-        let analysis = {};
+        // 简化：直接显示分子数据，删除复杂的HTML生成
         
-        if (molecularData) {
-            // 有分子数据 - 生成显示内容
-            if (isFromBackend) {
-                analysis = {
-                    title: molecularData.filename,
-                    format: molecularData.format_name,
-                    atoms: molecularData.atoms,
-                    is_backend: true
-                };
-            } else {
-                analysis = dataProcessor.analyzeMolecularContent(
-                    molecularData.content, 
-                    molecularData.filename
-                );
-            }
-            
-            displayContent = displayUtils.generateMolecularDisplayHTML(
-                molecularData, 
-                analysis, 
-                isFromBackend
-            );
-            
+        // 显示面板
+        panelManager.showPanel();
+        
+        // 获取分子内容
+        let molstarContent = null;
+        if (molecularData && molecularData.content) {
+            // 使用实际分子数据
+            molstarContent = molecularData.content;
+            console.log(`🧪 显示分子: ${molecularData.filename || selectedFile}`);
         } else {
-            // 没有分子数据 - 使用演示模式
-            // QUIET: console.log(`🧪 No molecular data found, using demo mode for: ${selectedFile}`);
-            
+            // 使用演示数据
             const demoData = dataProcessor.getDemoMoleculeData(selectedFile);
-            analysis = {
-                title: selectedFile,
-                format: 'Demo PDB',
-                atoms: 6, // 默认苯环原子数
-                isDemo: true
-            };
-            
-            displayContent = displayUtils.generateMolecularDisplayHTML(
-                { title: selectedFile, content: demoData.pdb },
-                analysis,
-                false
-            );
+            molstarContent = demoData.pdb;
+            console.log(`🧪 显示演示分子: ${selectedFile}`);
         }
         
-        // 显示数据
-        if (panelManager.isMolstarAvailable()) {
-            // MolStar模式 - 直接渲染分子数据
-            // QUIET: console.log("🧪 MolStar模式：渲染3D分子结构");
-            const molstarContent = molecularData?.content || dataProcessor.getPDBData(selectedFile);
-            panelManager.displayData(molstarContent);
-        } else {
-            // 文本模式 - 显示HTML内容
-            // QUIET: console.log("🧪 演示模式：显示HTML内容");
-            panelManager.displayData(displayContent);
-        }
+        // 直接显示分子数据（无论MolStar是否可用）
+        panelManager.displayData(molstarContent);
         
         // QUIET: console.log(`🎯 3D Display completed for node ${nodeId}, input: ${inputName}, file: ${selectedFile}`);
         
     } catch (error) {
-        console.error('🚨 Error in modular 3D display:', error);
+        console.error('🚨 Error in 3D display:', error);
         
-        // 显示错误信息
-        const errorContent = displayUtils.generateErrorHTML(
-            error.message,
-            [
-                '检查分子文件格式是否正确',
-                '确认文件已成功上传',
-                '尝试重新执行节点',
-                '查看浏览器控制台获取详细错误信息'
-            ]
-        );
-        
-        panelManager.displayData(errorContent);
-        displayUtils.showNotification(`3D显示出错: ${error.message}`, 'error');
+        // 简化错误处理：直接显示错误消息
+        const errorMessage = `❌ 3D显示错误: ${error.message}`;
+        panelManager.displayData(`<div style="padding: 20px; color: #f44336; text-align: center;">${errorMessage}</div>`);
     }
 };
 
@@ -336,9 +272,7 @@ export {
     ALCHEM3DPanelManager,
     ResizeController,
     MolecularDataProcessor,
-    DisplayUtils,
-    APIClient,
-    RDKitMolstarIntegration
+    APIClient
 };
 
 // QUIET: console.log("🎉 ALCHEM 3D Display modular system loaded successfully!");
