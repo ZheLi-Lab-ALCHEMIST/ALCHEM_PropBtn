@@ -57,7 +57,11 @@ const EXTENSION_CONFIG = {
     // 扩展设置
     settings: {
         debugMode: false,             // 调试模式 - 默认关闭
-        logLevel: 'warn',            // 日志级别: 'debug', 'info', 'warn', 'error' - 默认只显示警告
+        logLevel: 'warn',            // 日志级别: 'debug', 'info', 'warn', 'error' 
+                                     // debug: 显示所有日志（包括QUIET注释）
+                                     // info: 显示信息级别以上  
+                                     // warn: 只显示警告和错误（默认）
+                                     // error: 只显示错误
         autoRefresh: true,           // 自动刷新ComfyUI组件
         enableMetrics: false,        // 启用性能监控 - 默认关闭
         verboseLogging: false        // 详细日志 - 默认关闭
@@ -67,7 +71,7 @@ const EXTENSION_CONFIG = {
 // 统一日志处理系统
 const logger = {
     debug: (message, module = 'MAIN') => {
-        if (EXTENSION_CONFIG.settings.debugMode && EXTENSION_CONFIG.settings.logLevel === 'debug') {
+        if (EXTENSION_CONFIG.settings.logLevel === 'debug') {
             console.debug(`[${EXTENSION_CONFIG.modules[module]?.name || module}] 🐛 ${message}`);
         }
     },
@@ -83,6 +87,13 @@ const logger = {
     },
     error: (message, module = 'MAIN') => {
         console.error(`[${EXTENSION_CONFIG.modules[module]?.name || module}] ❌ ${message}`);
+    },
+    
+    // 简单日志函数 - 供其他文件使用，在debug模式下显示QUIET注释
+    quiet: (message) => {
+        if (EXTENSION_CONFIG.settings.logLevel === 'debug') {
+            console.log(`🗿 ${message}`);
+        }
     }
 };
 
@@ -234,6 +245,13 @@ const getExtensionStatus = () => {
 // 全局调试接口
 window.getCustomWidgetStatus = getExtensionStatus;
 
+// 全局QUIET日志函数 - 供所有模块使用
+window.QUIET_LOG = (message) => {
+    if (EXTENSION_CONFIG.settings.logLevel === 'debug') {
+        console.log(`🗿 ${message}`);
+    }
+};
+
 // 主扩展注册
 app.registerExtension({
     name: EXTENSION_CONFIG.name,  // ComfyUI用这个名称注册扩展
@@ -256,6 +274,11 @@ app.registerExtension({
                         setLogLevel: (level) => {
                             EXTENSION_CONFIG.settings.logLevel = level;
                             logger.info(`Log level set to: ${level}`);
+                            console.log("📝 日志级别说明:");
+                            console.log("  debug: 显示所有日志（包括QUIET注释）");
+                            console.log("  info: 显示信息级别以上");
+                            console.log("  warn: 只显示警告和错误（默认）");
+                            console.log("  error: 只显示错误");
                         },
                         toggleDebug: () => {
                             EXTENSION_CONFIG.settings.debugMode = !EXTENSION_CONFIG.settings.debugMode;

@@ -28,7 +28,7 @@ class ALCHEM3DDisplayCoordinator {
     async initialize() {
         if (this.isInitialized) return;
         
-        // QUIET: console.log("🚀 Initializing ALCHEM 3D Display Coordinator...");
+        window.QUIET_LOG && window.QUIET_LOG("🚀 Initializing ALCHEM 3D Display Coordinator...");
         
         // 应用样式
         applyStyles();
@@ -42,7 +42,7 @@ class ALCHEM3DDisplayCoordinator {
         await this.panelManager.initialize();
         
         this.isInitialized = true;
-        // QUIET: console.log("✅ ALCHEM 3D Display Coordinator initialized");
+        window.QUIET_LOG && window.QUIET_LOG("✅ ALCHEM 3D Display Coordinator initialized");
     }
     
     // 获取面板管理器
@@ -95,13 +95,13 @@ export const show3DMolecularView = async (node, inputName) => {
     const dataProcessor = alchem3DCoordinator.getDataProcessor();
     
     try {
-        // QUIET: console.log("🎯 Using ALCHEM modular display system");
+        window.QUIET_LOG && window.QUIET_LOG("🎯 Using ALCHEM modular display system");
         
         // 获取分子输入数据
         const molInput = node.widgets.find(w => w.name === inputName);
         const selectedFile = molInput ? molInput.value : 'benzene';
         
-        // QUIET: console.log(`🧪 Processing molecular display: ${inputName} = ${selectedFile}`);
+        window.QUIET_LOG && window.QUIET_LOG(`🧪 Processing molecular display: ${inputName} = ${selectedFile}`);
         
         // 生成唯一节点ID
         const nodeId = dataProcessor.generateUniqueNodeId(node);
