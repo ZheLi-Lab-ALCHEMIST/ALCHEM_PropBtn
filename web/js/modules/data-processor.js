@@ -3,52 +3,12 @@
  * 从custom3DDisplay.js重构而来
  */
 
-// 演示分子数据
-const DEMO_MOLECULES = {
-    'benzene': {
-        formula: 'C₆H₆',
-        weight: '78.11 g/mol',
-        pdb: `HEADER    BENZENE MOLECULE
-COMPND    BENZENE
-ATOM      1  C1  BNZ A   1       0.000   1.400   0.000  1.00  0.00           C
-ATOM      2  C2  BNZ A   1       1.212   0.700   0.000  1.00  0.00           C
-ATOM      3  C3  BNZ A   1       1.212  -0.700   0.000  1.00  0.00           C
-ATOM      4  C4  BNZ A   1       0.000  -1.400   0.000  1.00  0.00           C
-ATOM      5  C5  BNZ A   1      -1.212  -0.700   0.000  1.00  0.00           C
-ATOM      6  C6  BNZ A   1      -1.212   0.700   0.000  1.00  0.00           C
-END`
-    },
-    'water': {
-        formula: 'H₂O',
-        weight: '18.02 g/mol',
-        pdb: `HEADER    WATER MOLECULE
-COMPND    WATER
-ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00  0.00           O
-ATOM      2  H1  HOH A   1       0.757   0.586   0.000  1.00  0.00           H
-ATOM      3  H2  HOH A   1      -0.757   0.586   0.000  1.00  0.00           H
-END`
-    },
-    'caffeine': {
-        formula: 'C₈H₁₀N₄O₂',
-        weight: '194.19 g/mol',
-        pdb: `HEADER    CAFFEINE MOLECULE
-COMPND    CAFFEINE
-ATOM      1  N1  CAF A   1      -1.234   0.000   0.000  1.00  0.00           N
-ATOM      2  C2  CAF A   1      -0.617   1.234   0.000  1.00  0.00           C
-ATOM      3  N3  CAF A   1       0.617   1.234   0.000  1.00  0.00           N
-END`
-    },
-    'aspirin': {
-        formula: 'C₉H₈O₄',
-        weight: '180.16 g/mol',
-        pdb: `HEADER    ASPIRIN MOLECULE
-COMPND    ASPIRIN
-ATOM      1  C1  ASP A   1       0.000   0.000   0.000  1.00  0.00           C
-ATOM      2  C2  ASP A   1       1.200   0.693   0.000  1.00  0.00           C
-ATOM      3  C3  ASP A   1       1.200   2.079   0.000  1.00  0.00           C
-END`
-    }
-};
+// 简单默认PDB数据
+const DEFAULT_PDB = `HEADER    DEFAULT MOLECULE
+COMPND    DEFAULT
+ATOM      1  C1  DEF A   1       0.000   1.000   0.000  1.00  0.00           C
+ATOM      2  C2  DEF A   1       1.000   0.000   0.000  1.00  0.00           C
+END`;
 
 /**
  * 数据处理器类
@@ -246,29 +206,9 @@ export class MolecularDataProcessor {
         return analysis;
     }
     
-    // 获取演示分子数据
-    getDemoMoleculeData(moleculeName) {
-        const molecule = DEMO_MOLECULES[moleculeName];
-        if (!molecule) {
-            // QUIET: console.warn(`🧪 Demo molecule not found: ${moleculeName}`);
-            return DEMO_MOLECULES['benzene']; // 默认返回苯环
-        }
-        return molecule;
-    }
-    
-    // 获取分子式
-    getMolecularFormula(molecule) {
-        return DEMO_MOLECULES[molecule]?.formula || 'Unknown';
-    }
-    
-    // 获取分子量
-    getMolecularWeight(molecule) {
-        return DEMO_MOLECULES[molecule]?.weight || 'Unknown';
-    }
-    
-    // 获取PDB数据
-    getPDBData(molecule) {
-        return DEMO_MOLECULES[molecule]?.pdb || 'No PDB data available';
+    // 获取默认数据
+    getDefaultMoleculeData() {
+        return { pdb: DEFAULT_PDB };
     }
     
     // 从HTML数据中提取分子信息

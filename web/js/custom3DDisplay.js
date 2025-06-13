@@ -7,7 +7,7 @@
 import { app } from "../../../scripts/app.js";
 
 // 导入合并后的模块
-import { loadMolstarLibrary, MolstarViewer, PDBUtils } from './modules/molstar-core.js';
+import { loadMolstarLibrary, MolstarViewer } from './modules/molstar-core.js';
 import { applyStyles, ALCHEM3DPanelManager, ResizeController } from './modules/ui-integrated.js';
 // DisplayUtils已删除 - 简化为直接显示分子数据
 import { MolecularDataProcessor } from './modules/data-processor.js';
@@ -157,10 +157,10 @@ export const show3DMolecularView = async (node, inputName) => {
             molstarContent = molecularData.content;
             console.log(`🧪 显示分子: ${molecularData.filename || selectedFile}`);
         } else {
-            // 使用演示数据
-            const demoData = dataProcessor.getDemoMoleculeData(selectedFile);
-            molstarContent = demoData.pdb;
-            console.log(`🧪 显示演示分子: ${selectedFile}`);
+            // 使用默认数据
+            const defaultData = dataProcessor.getDefaultMoleculeData();
+            molstarContent = defaultData.pdb;
+            console.log(`🧪 显示默认分子`);
         }
         
         // 直接显示分子数据（无论MolStar是否可用）
@@ -268,7 +268,6 @@ export { alchem3DCoordinator };
 export {
     loadMolstarLibrary,
     MolstarViewer,
-    PDBUtils,
     ALCHEM3DPanelManager,
     ResizeController,
     MolecularDataProcessor,
