@@ -44,6 +44,9 @@ class MolecularExecutionHook:
             # 尝试导入ComfyUI的执行模块
             import execution
             
+            # 🔍 调试：检查execution模块的内容
+            logger.info(f"🔍 execution模块属性: {dir(execution)}")
+            
             # 保存原始函数
             if hasattr(execution, 'get_input_data'):
                 self.original_get_input_data = execution.get_input_data
@@ -53,9 +56,11 @@ class MolecularExecutionHook:
                 self.hooked = True
                 
                 logger.info("🔗 成功安装分子数据执行钩子")
+                logger.info(f"🔍 原始函数类型: {type(self.original_get_input_data)}")
                 return True
             else:
                 logger.warning("⚠️ 无法找到ComfyUI的get_input_data函数")
+                logger.warning(f"🔍 可用属性: {[attr for attr in dir(execution) if not attr.startswith('_')]}")
                 return False
                 
         except Exception as e:
@@ -79,6 +84,8 @@ class MolecularExecutionHook:
         
         检查是否有分子输入字段，如果有则从后端内存获取内容
         """
+        logger.debug(f"🔗 执行钩子被调用 - 节点ID: {unique_id}, 类: {getattr(class_def, '__name__', 'unknown')}")
+        
         try:
             # 🎯 检查是否是分子相关的节点
             node_class_name = class_def.__name__ if hasattr(class_def, '__name__') else str(class_def)
@@ -91,7 +98,7 @@ class MolecularExecutionHook:
                 input_data = self._fallback_get_input_data(inputs, class_def, unique_id)
             
             # 🧪 检查并处理分子输入
-            modified_data = self._process_molecular_inputs(input_data, unique_id, node_class_name)
+            modified_data = self._process_molecular_inputs(input_data, unique_id, node_class_name, class_def)
             
             return modified_data
             
@@ -103,7 +110,7 @@ class MolecularExecutionHook:
             else:
                 return self._fallback_get_input_data(inputs, class_def, unique_id)
     
-    def _process_molecular_inputs(self, input_data: Dict[str, Any], unique_id: str, node_class_name: str) -> Dict[str, Any]:
+    def _process_molecular_inputs(self, input_data: Dict[str, Any], unique_id: str, node_class_name: str, class_def=None) -> Dict[str, Any]:
         """
         处理分子输入数据
         
@@ -115,52 +122,124 @@ class MolecularExecutionHook:
         modified_data = input_data.copy()
         modifications_made = False
         
+        # 🔧 总是添加节点ID信息，方便调试
+        modified_data['_alchem_node_id'] = unique_id
+        
         # 🔍 遍历所有输入字段
         for field_name, field_value in input_data.items():
-            if self._is_molecular_field(field_name, field_value, node_class_name):
+            if self._is_molecular_field(field_name, field_value, node_class_name, class_def):
                 # 🚀 尝试从后端内存获取分子数据
                 molecular_content = self._get_molecular_content_from_memory(unique_id, field_name, field_value)
                 
                 if molecular_content is not None:
                     modified_data[field_name] = molecular_content
+                    # 🔧 同时传递节点ID信息给节点函数
+                    modified_data['_alchem_node_id'] = unique_id
                     modifications_made = True
                     logger.info(f"🧪 节点 {unique_id} 的字段 '{field_name}' 已从后端内存获取分子数据")
                     logger.debug(f"   原始值: {field_value}")
                     logger.debug(f"   内容长度: {len(molecular_content)} 字符")
+                else:
+                    # 🔧 如果直接查找失败，尝试按文件名查找并复制数据
+                    logger.warning(f"🔍 节点 {unique_id} 直接查找失败，尝试按文件名查找: {field_value}")
+                    
+                    try:
+                        from .molecular_memory import get_cache_status, get_molecular_data, store_molecular_data
+                        cache_status = get_cache_status()
+                        
+                        # 查找同名文件
+                        for cached_node in cache_status.get('nodes', []):
+                            if cached_node.get('filename') == field_value:
+                                source_node_id = cached_node.get('node_id')
+                                logger.info(f"🔄 找到同名文件缓存，源节点: {source_node_id}")
+                                
+                                # 获取源数据
+                                source_data = get_molecular_data(source_node_id)
+                                if source_data and 'content' in source_data:
+                                    # 复制到当前节点
+                                    store_molecular_data(
+                                        node_id=unique_id,
+                                        filename=field_value,
+                                        folder=source_data.get('folder', 'molecules'),
+                                        content=source_data['content']
+                                    )
+                                    
+                                    # 使用复制的内容
+                                    modified_data[field_name] = source_data['content']
+                                    # 🔧 同时传递节点ID信息给节点函数
+                                    modified_data['_alchem_node_id'] = unique_id
+                                    modifications_made = True
+                                    logger.info(f"✅ 数据复制成功: {source_node_id} → {unique_id}")
+                                    logger.debug(f"   内容长度: {len(source_data['content'])} 字符")
+                                break
+                    except Exception as copy_error:
+                        logger.error(f"🚨 数据复制失败: {copy_error}")
         
         if modifications_made:
             logger.info(f"🎯 节点 {unique_id} ({node_class_name}) 已应用分子数据内存优化")
         
         return modified_data
     
-    def _is_molecular_field(self, field_name: str, field_value: Any, node_class_name: str) -> bool:
+    def _is_molecular_field(self, field_name: str, field_value: Any, node_class_name: str, class_def=None) -> bool:
         """
         判断是否是分子输入字段
         
-        检查字段名称、值的特征以及节点类型来判断是否是分子文件输入
+        🔧 改进检测逻辑：检查字段的INPUT_TYPES属性，而不是硬编码类名
         """
-        # 检查字段名称
+        # 🎯 方法1：检查字段的INPUT_TYPES属性（最准确）
+        if class_def and hasattr(class_def, 'INPUT_TYPES'):
+            try:
+                input_types = class_def.INPUT_TYPES()
+                required = input_types.get('required', {})
+                optional = input_types.get('optional', {})
+                
+                # 检查字段是否有分子相关属性
+                for field_dict in [required, optional]:
+                    if field_name in field_dict:
+                        field_config = field_dict[field_name]
+                        if isinstance(field_config, (list, tuple)) and len(field_config) >= 2:
+                            field_attrs = field_config[1] if isinstance(field_config[1], dict) else {}
+                            
+                            # 检查是否有分子相关属性
+                            molecular_attrs = [
+                                'molecular_upload', 'molstar_3d_display', 
+                                'custom_text_upload', 'molecular_file'
+                            ]
+                            
+                            for attr in molecular_attrs:
+                                if field_attrs.get(attr) is True:
+                                    logger.debug(f"🎯 字段 '{field_name}' 具有分子属性: {attr}")
+                                    return True
+            except Exception as e:
+                logger.debug(f"检查字段属性时出错: {e}")
+        
+        # 🎯 方法2：检查字段名称（备用）
         molecular_field_names = [
             'molecular_file', 'molecule_file', 'mol_file', 'pdb_file',
             'structure_file', 'molecular_data', 'molecule_data'
         ]
         
         if any(name in field_name.lower() for name in molecular_field_names):
+            logger.debug(f"🎯 字段名 '{field_name}' 匹配分子字段模式")
             return True
         
-        # 检查节点类名
+        # 🎯 方法3：检查节点类名（兼容性）
         molecular_node_classes = [
             'MolecularUploadDemoNode', 'DualAttributeTestNode', 
-            'Demo3DDisplayNode', 'DualButtonDemoNode'
+            'Demo3DDisplayNode', 'DualButtonDemoNode',
+            'SimpleUploadAndDisplayTestNode',
+            'StandardMolecularAnalysisNode'  # 🔧 添加新的标准节点
         ]
         
         if node_class_name in molecular_node_classes:
+            logger.debug(f"🎯 节点类 '{node_class_name}' 在分子节点白名单中")
             return True
         
-        # 检查值的特征（文件扩展名）
+        # 🎯 方法4：检查值的特征（文件扩展名）
         if isinstance(field_value, str) and field_value:
             molecular_extensions = ['.pdb', '.mol', '.sdf', '.xyz', '.mol2', '.cif', '.gro', '.fasta', '.fa']
             if any(field_value.lower().endswith(ext) for ext in molecular_extensions):
+                logger.debug(f"🎯 字段值 '{field_value}' 具有分子文件扩展名")
                 return True
         
         return False

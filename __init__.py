@@ -9,6 +9,24 @@ try:
 except ImportError as e:
     print(f"⚠️ 测试节点导入失败: {e}")
 
+# 导入简洁测试节点
+try:
+    from .nodes.test_simple_node import NODE_CLASS_MAPPINGS as SIMPLE_TEST_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as SIMPLE_TEST_DISPLAY_MAPPINGS
+    # 合并节点映射
+    NODE_CLASS_MAPPINGS.update(SIMPLE_TEST_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(SIMPLE_TEST_DISPLAY_MAPPINGS)
+except ImportError as e:
+    print(f"⚠️ 简洁测试节点导入失败: {e}")
+
+# 导入标准分子节点
+try:
+    from .nodes.standard_molecular_node import NODE_CLASS_MAPPINGS as STANDARD_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as STANDARD_DISPLAY_MAPPINGS
+    # 合并节点映射
+    NODE_CLASS_MAPPINGS.update(STANDARD_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(STANDARD_DISPLAY_MAPPINGS)
+except ImportError as e:
+    print(f"⚠️ 标准分子节点导入失败: {e}")
+
 # ====================================================================================================
 # 导入并注册Web API
 #
@@ -32,16 +50,19 @@ except ImportError:
     API_AVAILABLE = False
     logger.error("🚨 ALCHEM_PropBtn: Molecular API模块加载失败")
 
-# 安装执行钩子
-try:
-    from .backend.execution_hook import install_molecular_execution_hook
-    hook_installed = install_molecular_execution_hook()
-    if hook_installed:
-        logger.info("🔗 ALCHEM_PropBtn: 分子数据执行钩子安装成功")
-    else:
-        logger.warning("⚠️ ALCHEM_PropBtn: 分子数据执行钩子安装失败")
-except ImportError as e:
-    logger.error(f"🚨 ALCHEM_PropBtn: 执行钩子模块加载失败 - {e}")
+# 🔧 方案B：禁用execution_hook，使用节点主动获取模式
+# 注释掉execution_hook安装，因为方案B不需要它
+# try:
+#     from .backend.execution_hook import install_molecular_execution_hook
+#     hook_installed = install_molecular_execution_hook()
+#     if hook_installed:
+#         logger.info("🔗 ALCHEM_PropBtn: 分子数据执行钩子安装成功")
+#     else:
+#         logger.warning("⚠️ ALCHEM_PropBtn: 分子数据执行钩子安装失败")
+# except ImportError as e:
+#     logger.error(f"🚨 ALCHEM_PropBtn: 执行钩子模块加载失败 - {e}")
+
+logger.info("🎯 ALCHEM_PropBtn: 使用方案B - 节点主动数据获取模式")
 
 # 分子数据查询API
 @server.PromptServer.instance.routes.post("/alchem_propbtn/api/molecular")
