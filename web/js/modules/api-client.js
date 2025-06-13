@@ -56,7 +56,7 @@ export class APIClient {
             } catch (error) {
                 lastError = error;
                 if (i < this.retryCount - 1) {
-                    console.warn(`🔄 Request failed, retrying... (${i + 1}/${this.retryCount})`, error);
+                    // QUIET: console.warn(`🔄 Request failed, retrying... (${i + 1}/${this.retryCount})`, error);
                     await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // 指数退避
                 }
             }
@@ -71,12 +71,12 @@ export class APIClient {
         
         // 检查缓存
         if (this.cache.has(cacheKey)) {
-            console.log(`📦 Using cached molecular data for node: ${nodeId}`);
+            // QUIET: console.log(`📦 Using cached molecular data for node: ${nodeId}`);
             return this.cache.get(cacheKey);
         }
         
         try {
-            console.log(`🚀 Fetching molecular data for node: ${nodeId}`);
+            // QUIET: console.log(`🚀 Fetching molecular data for node: ${nodeId}`);
             
             const response = await this.request('/alchem_propbtn/api/molecular', {
                 method: 'POST',
@@ -87,11 +87,11 @@ export class APIClient {
             });
             
             if (response.success) {
-                console.log(`✅ Successfully retrieved molecular data from backend`);
-                console.log(`   - Node ID: ${response.data.node_id}`);
-                console.log(`   - Filename: ${response.data.filename}`);
-                console.log(`   - Format: ${response.data.format_name}`);
-                console.log(`   - Atoms: ${response.data.atoms}`);
+                // QUIET: console.log(`✅ Successfully retrieved molecular data from backend`);
+                // QUIET: console.log(`   - Node ID: ${response.data.node_id}`);
+                // QUIET: console.log(`   - Filename: ${response.data.filename}`);
+                // QUIET: console.log(`   - Format: ${response.data.format_name}`);
+                // QUIET: console.log(`   - Atoms: ${response.data.atoms}`);
                 
                 // 缓存结果
                 this.cache.set(cacheKey, response);
@@ -121,7 +121,7 @@ export class APIClient {
                 })
             });
             
-            console.log(`📊 Cache status:`, response);
+            // QUIET: console.log(`📊 Cache status:`, response);
             
             // 缓存结果（短时间）
             this.cache.set(cacheKey, response);
@@ -146,7 +146,7 @@ export class APIClient {
                 method: 'GET'
             });
             
-            console.log(`🔧 System status:`, response);
+            // QUIET: console.log(`🔧 System status:`, response);
             return response;
             
         } catch (error) {
@@ -179,7 +179,7 @@ export class APIClient {
             }
             
             const result = await response.json();
-            console.log(`📤 Upload result:`, result);
+            // QUIET: console.log(`📤 Upload result:`, result);
             
             // 清除相关缓存
             this.clearCacheForNode(nodeId);
@@ -199,7 +199,7 @@ export class APIClient {
     async readFileContent(filename) {
         try {
             const fileUrl = `/view?filename=${encodeURIComponent(filename)}&type=input`;
-            console.log(`🧪 Reading file: ${fileUrl}`);
+            // QUIET: console.log(`🧪 Reading file: ${fileUrl}`);
             
             const response = await fetch(fileUrl);
             if (!response.ok) {
@@ -207,7 +207,7 @@ export class APIClient {
             }
             
             const content = await response.text();
-            console.log(`🧪 Successfully read ${content.length} characters from ${filename}`);
+            // QUIET: console.log(`🧪 Successfully read ${content.length} characters from ${filename}`);
             
             return content;
         } catch (error) {
@@ -223,7 +223,7 @@ export class APIClient {
         nodeKeys.forEach(key => this.cache.delete(key));
         
         if (nodeKeys.length > 0) {
-            console.log(`🧹 Cleared cache for node ${nodeId}: ${nodeKeys.length} entries`);
+            // QUIET: console.log(`🧹 Cleared cache for node ${nodeId}: ${nodeKeys.length} entries`);
         }
     }
     
@@ -231,7 +231,7 @@ export class APIClient {
     clearAllCache() {
         const size = this.cache.size;
         this.cache.clear();
-        console.log(`🧹 Cleared all API cache: ${size} entries`);
+        // QUIET: console.log(`🧹 Cleared all API cache: ${size} entries`);
     }
     
     // 获取缓存统计信息
@@ -264,9 +264,9 @@ export class RDKitMolstarIntegration {
         
         if (this.isAvailable) {
             this.globalViewer = window.globalViewer;
-            console.log("🎯 rdkit_molstar viewer is available");
+            // QUIET: console.log("🎯 rdkit_molstar viewer is available");
         } else {
-            console.log("🎯 rdkit_molstar viewer is not available");
+            // QUIET: console.log("🎯 rdkit_molstar viewer is not available");
         }
         
         return this.isAvailable;
@@ -275,23 +275,23 @@ export class RDKitMolstarIntegration {
     // 尝试使用现有的MolStar查看器
     async tryUseExistingMolStarViewer(node, inputName) {
         if (!this.isAvailable) {
-            console.log("🎯 rdkit_molstar not available, using ALCHEM viewer");
+            // QUIET: console.log("🎯 rdkit_molstar not available, using ALCHEM viewer");
             return false;
         }
         
         // 只有当用户明确希望使用rdkit_molstar时才尝试
         if (typeof node.showInGlobalViewer === 'function') {
-            console.log("🎯 Found and using rdkit_molstar viewer (user preference)");
+            // QUIET: console.log("🎯 Found and using rdkit_molstar viewer (user preference)");
             try {
                 await node.showInGlobalViewer();
                 return true;
             } catch (error) {
-                console.warn("🎯 Failed to use rdkit_molstar viewer:", error);
+                // QUIET: console.warn("🎯 Failed to use rdkit_molstar viewer:", error);
             }
         }
         
         // 默认使用ALCHEM自己的MolStar集成
-        console.log("🎯 Using ALCHEM independent MolStar viewer");
+        // QUIET: console.log("🎯 Using ALCHEM independent MolStar viewer");
         return false;
     }
     

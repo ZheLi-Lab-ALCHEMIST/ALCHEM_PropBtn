@@ -8,300 +8,9 @@
  */
 
 import { loadMolstarLibrary, MolstarViewer } from './molstar-core.js';
+import { EXTENSION_CONFIG, logger } from '../extensionMain.js';
 
-// =================== 样式定义 ===================
-export const display3DStyles = `
-/* ComfyUI样式变量兼容 */
-:root {
-    --comfy-menu-bg: #202020;
-    --comfy-input-bg: #2a2a2a;
-    --comfy-input-bg-hover: #333;
-    --comfy-input-bg-active: #3a3a3a;
-    --bg-color: #1a1a1a;
-    --fg-color: #ccc;
-    --border-color: #444;
-    --primary-color: #007bff;
-    --primary-color-hover: #0056b3;
-    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
-
-.custom-3d-display-button {
-    background: var(--comfy-input-bg, #2a2a2a);
-    border: 1px solid var(--border-color, #444);
-    border-radius: 4px;
-    color: var(--fg-color, #ccc);
-    padding: 6px 12px;
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin: 2px;
-    font-family: inherit;
-}
-
-.custom-3d-display-button:hover {
-    background: var(--comfy-input-bg-hover, #333);
-    border-color: var(--primary-color, #007bff);
-}
-
-.custom-3d-display-button:active {
-    background: var(--comfy-input-bg-active, #3a3a3a);
-}
-
-.custom-3d-viewer {
-    position: fixed;
-    top: 40px;
-    left: 36px;
-    width: calc(100% - 36px);
-    height: 40%;
-    background: var(--comfy-menu-bg, #202020);
-    border: 1px solid var(--border-color, #444);
-    border-top: none;
-    z-index: 8;
-    display: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    transition: all 0.3s ease;
-    font-family: var(--font-family, sans-serif);
-}
-
-.custom-3d-viewer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    background: var(--comfy-menu-bg, #202020);
-    border-bottom: 1px solid var(--border-color, #444);
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-.custom-3d-viewer-title {
-    color: var(--fg-color, #ccc);
-    font-size: 14px;
-    font-weight: 500;
-    margin: 0;
-}
-
-.custom-3d-viewer-close {
-    background: transparent;
-    border: 1px solid var(--border-color, #444);
-    color: var(--fg-color, #ccc);
-    padding: 4px 8px;
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s ease;
-}
-
-.custom-3d-viewer-close:hover {
-    background: var(--comfy-input-bg-hover, #333);
-    border-color: var(--primary-color, #007bff);
-}
-
-.custom-3d-viewer-content {
-    background: var(--bg-color, #1a1a1a);
-    padding: 16px;
-    height: calc(100% - 60px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    color: var(--fg-color, #ccc);
-    font-family: var(--font-family, sans-serif);
-    line-height: 1.5;
-}
-
-.info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin: 12px 0;
-    padding: 12px;
-    background: var(--comfy-input-bg, #2a2a2a);
-    border-radius: 6px;
-    border: 1px solid var(--border-color, #444);
-}
-
-.info-grid div {
-    line-height: 1.6;
-}
-
-.status-info {
-    background: var(--comfy-input-bg, #2a2a2a);
-    border: 1px solid var(--border-color, #444);
-    border-radius: 6px;
-    padding: 16px;
-    margin: 12px 0;
-}
-
-.status-info h4 {
-    margin: 0 0 12px 0;
-    color: var(--primary-color, #007bff);
-    font-size: 14px;
-}
-
-.viewer-container {
-    width: 100%;
-    height: 400px;
-    border: 1px solid var(--border-color, #444);
-    border-radius: 4px;
-    background: var(--bg-color, #1a1a1a);
-}
-
-.resize-border {
-    position: absolute;
-    z-index: 20;
-}
-
-.resize-border:hover {
-    background-color: rgba(0, 123, 255, 0.3);
-}
-
-.resize-border.resizing {
-    background-color: rgba(0, 123, 255, 0.5);
-}
-
-.resize-border.top {
-    top: -3px;
-    left: 0;
-    right: 0;
-    height: 6px;
-    cursor: n-resize;
-}
-
-.resize-border.bottom {
-    bottom: -3px;  
-    left: 0;
-    right: 0;
-    height: 6px;
-    cursor: s-resize;
-}
-
-.resize-border.left {
-    left: -3px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: w-resize;
-}
-
-.resize-border.right {
-    right: -3px;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: e-resize;
-}
-
-.resize-border.top-left {
-    top: -3px;
-    left: -3px;
-    width: 10px;
-    height: 10px;
-    cursor: nw-resize;
-}
-
-.resize-border.top-right {
-    top: -3px;
-    right: -3px;
-    width: 10px;
-    height: 10px;
-    cursor: ne-resize;
-}
-
-.resize-border.bottom-left {
-    bottom: -3px;
-    left: -3px;
-    width: 10px;
-    height: 10px;
-    cursor: sw-resize;
-    background-color: rgba(0, 255, 0, 0.4);
-}
-
-.resize-border.bottom-left:hover {
-    background-color: rgba(0, 255, 0, 0.7);
-}
-
-.resize-border.bottom-right {
-    bottom: -3px;
-    right: -3px;
-    width: 10px;
-    height: 10px;
-    cursor: se-resize;
-}
-
-.loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(26, 26, 26, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--fg-color, #ccc);
-    z-index: 1000;
-}
-
-.demo-3d-display {
-    width: 100%;
-    height: 300px;
-    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
-    border: 2px dashed var(--border-color, #444);
-    border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: var(--fg-color, #ccc);
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-}
-
-.molecule-title {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 8px;
-    color: var(--primary-color, #007bff);
-}
-
-.molecule-info {
-    font-size: 12px;
-    opacity: 0.8;
-    margin: 4px 0;
-}
-
-.loading-spinner {
-    border: 3px solid var(--border-color, #444);
-    border-top: 3px solid var(--primary-color, #007bff);
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 12px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.progress-bar {
-    width: 200px;
-    height: 4px;
-    background: var(--border-color, #444);
-    border-radius: 2px;
-    overflow: hidden;
-    margin: 12px 0;
-}
-
-.progress-fill {
-    height: 100%;
-    background: var(--primary-color, #007bff);
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-`;
+// =================== 样式管理 ===================
 
 // =================== 拖拽缩放控制器 ===================
 export class ResizeController {
@@ -342,7 +51,7 @@ export class ResizeController {
             panel.appendChild(borderElement);
         });
         
-        console.log("🎯 Added 8-direction resize borders to panel");
+        // QUIET: logger.debug("🎯 Added 8-direction resize borders to panel");
     }
     
     // 获取拖动边框的样式
@@ -440,7 +149,7 @@ export class ResizeController {
         // 添加拖拽状态样式
         panel.classList.add('resizing');
         
-        console.log(`🎯 Started resizing panel from ${position}`);
+        // QUIET: logger.debug(`🎯 Started resizing panel from ${position}`);
     }
     
     // 执行拖动调整
@@ -526,7 +235,7 @@ export class ResizeController {
         this.currentPanel = null;
         this.resizeData = null;
         
-        console.log("🎯 Stopped resizing panel");
+        // QUIET: logger.debug("🎯 Stopped resizing panel");
     }
     
     // 获取对应位置的光标样式
@@ -551,7 +260,7 @@ export class ResizeController {
         this.maxWidth = maxWidth || (window.innerWidth - 50);
         this.maxHeight = maxHeight || (window.innerHeight - 50);
         
-        console.log(`🎯 Updated resize limits: ${minWidth}x${minHeight} to ${this.maxWidth}x${this.maxHeight}`);
+        // QUIET: logger.debug(`🎯 Updated resize limits: ${minWidth}x${minHeight} to ${this.maxWidth}x${this.maxHeight}`);
     }
     
     // 获取当前是否正在拖拽
@@ -564,7 +273,7 @@ export class ResizeController {
         if (this.isResizing) {
             this.stopResize();
         }
-        console.log("🎯 Resize controller destroyed");
+        // QUIET: logger.debug("🎯 Resize controller destroyed");
     }
 }
 
@@ -888,7 +597,7 @@ export class DisplayUtils {
         // 清理加载覆盖层
         document.querySelectorAll('.loading-overlay').forEach(el => el.remove());
         
-        console.log("🧪 Display utils cleaned up");
+        // QUIET: logger.debug("🧪 Display utils cleaned up");
     }
 }
 
@@ -914,7 +623,7 @@ export class ALCHEM3DPanelManager {
     async initialize() {
         if (this.isInitialized) return;
         
-        console.log("🧪 初始化ALCHEM独立MolStar集成...");
+        // QUIET: logger.debug("🧪 初始化ALCHEM独立MolStar集成...");
         
         // 应用样式
         this.applyStyles();
@@ -926,20 +635,27 @@ export class ALCHEM3DPanelManager {
         this.createPanel();
         this.isInitialized = true;
         
-        console.log(`🚀 ALCHEM 3D Panel Manager initialized (MolStar: ${this.molstarAvailable ? '可用' : '不可用'})`);
+        // QUIET: logger.debug(`🚀 ALCHEM 3D Panel Manager initialized (MolStar: ${this.molstarAvailable ? '可用' : '不可用'})`);
         if (this.molstarAvailable) {
-            console.log("🎉 ALCHEM独立MolStar集成成功！");
+            // QUIET: logger.debug("🎉 ALCHEM独立MolStar集成成功！");
         } else {
-            console.log("⚠️ MolStar加载失败，使用演示模式");
+            // QUIET: logger.debug("⚠️ MolStar加载失败，使用演示模式");
         }
     }
     
     // 应用样式到文档
     applyStyles() {
-        const styleElement = document.createElement('style');
-        styleElement.textContent = display3DStyles;
-        document.head.appendChild(styleElement);
-        console.log("🎨 Display styles applied");
+        const linkElement = document.createElement('link');
+        linkElement.rel = 'stylesheet';
+        linkElement.type = 'text/css';
+        linkElement.href = './extensions/ALCHEM_PropBtn/css/molstar-display.css';
+        linkElement.onload = () => {
+            // QUIET: logger.debug("🎨 Display styles loaded from CSS file");
+        };
+        linkElement.onerror = () => {
+            logger.error("❌ Failed to load display styles CSS file");
+        };
+        document.head.appendChild(linkElement);
     }
     
     async createMenuButton() {
@@ -970,7 +686,7 @@ export class ALCHEM3DPanelManager {
                     menubar.appendChild(this.menuButton);
                 }
                 
-                console.log("🎯 Added ALCHEM 3D menu button to topbar");
+                // QUIET: logger.debug("🎯 Added ALCHEM 3D menu button to topbar");
                 return;
             }
             
@@ -978,7 +694,7 @@ export class ALCHEM3DPanelManager {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        console.warn("⚠️ Could not find ComfyUI menubar, creating floating button");
+        // QUIET: logger.warn("⚠️ Could not find ComfyUI menubar, creating floating button");
         this.createFloatingButton();
     }
     
@@ -998,7 +714,7 @@ export class ALCHEM3DPanelManager {
         this.menuButton.onclick = () => this.togglePanel();
         document.body.appendChild(this.menuButton);
         
-        console.log("🎯 Created floating ALCHEM 3D button");
+        // QUIET: logger.debug("🎯 Created floating ALCHEM 3D button");
     }
     
     createPanel() {
@@ -1073,18 +789,18 @@ export class ALCHEM3DPanelManager {
         
         document.body.appendChild(this.panel);
         
-        console.log(`🎯 Created ALCHEM 3D overlay panel (${this.molstarAvailable ? 'MolStar模式' : '演示模式'})`);
+        // QUIET: logger.debug(`🎯 Created ALCHEM 3D overlay panel (${this.molstarAvailable ? 'MolStar模式' : '演示模式'})`);
     }
     
     // 初始化MolStar查看器
     async initializeMolstarViewer() {
         if (!this.molstarAvailable || !window.molstar || !this.viewerContainer) {
-            console.warn("🧪 MolStar不可用，无法初始化3D查看器");
+            // QUIET: logger.warn("🧪 MolStar不可用，无法初始化3D查看器");
             return false;
         }
         
         try {
-            console.log("🧪 正在初始化MolStar查看器...");
+            // QUIET: logger.debug("🧪 正在初始化MolStar查看器...");
             
             // 创建MolStar查看器实例
             this.molstarViewer = new MolstarViewer();
@@ -1093,24 +809,24 @@ export class ALCHEM3DPanelManager {
             if (!success) {
                 this.molstarAvailable = false;
                 // 静默失败，不显示错误信息
-                console.warn("🧪 MolStar初始化失败，已静默回退");
+                // QUIET: logger.warn("🧪 MolStar初始化失败，已静默回退");
                 return false;
             }
             
-            console.log("🧪 MolStar查看器初始化成功");
+            // QUIET: logger.debug("🧪 MolStar查看器初始化成功");
             return true;
         } catch (error) {
-            console.error("🧪 初始化MolStar查看器失败:", error);
+            logger.error("🧪 初始化MolStar查看器失败:", error);
             this.molstarAvailable = false;
             // 静默失败，不显示错误信息
-            console.warn("🧪 MolStar初始化异常，已静默回退");
+            // QUIET: logger.warn("🧪 MolStar初始化异常，已静默回退");
             return false;
         }
     }
     
     showPanel(data = null) {
         if (!this.isInitialized) {
-            console.warn("⚠️ Panel manager not initialized");
+            // QUIET: logger.warn("⚠️ Panel manager not initialized");
             return;
         }
         
@@ -1134,7 +850,7 @@ export class ALCHEM3DPanelManager {
             this.showWelcome();
         }
         
-        console.log("🎯 ALCHEM 3D panel shown");
+        // QUIET: logger.debug("🎯 ALCHEM 3D panel shown");
     }
     
     hidePanel() {
@@ -1157,7 +873,7 @@ export class ALCHEM3DPanelManager {
             this.panel.classList.remove('panel-hiding');
         }, 300);
         
-        console.log("🎯 ALCHEM 3D panel hidden");
+        // QUIET: logger.debug("🎯 ALCHEM 3D panel hidden");
     }
     
     togglePanel() {
@@ -1171,7 +887,7 @@ export class ALCHEM3DPanelManager {
     // 显示数据
     displayData(htmlContent) {
         if (!this.isInitialized) {
-            console.warn("⚠️ Panel manager not initialized");
+            // QUIET: logger.warn("⚠️ Panel manager not initialized");
             return;
         }
         
@@ -1180,11 +896,11 @@ export class ALCHEM3DPanelManager {
         
         if (this.molstarAvailable && this.molstarViewer) {
             // MolStar模式 - 直接渲染分子数据
-            console.log("🧪 使用MolStar渲染分子数据");
+            // QUIET: logger.debug("🧪 使用MolStar渲染分子数据");
             this.molstarViewer.displayMolecularData(htmlContent);
         } else {
             // 文本模式 - 显示HTML内容
-            console.log("🧪 使用文本模式显示数据");
+            // QUIET: logger.debug("🧪 使用文本模式显示数据");
             content.style.padding = '16px';
             content.innerHTML = htmlContent;
         }
@@ -1199,7 +915,7 @@ export class ALCHEM3DPanelManager {
         
         if (this.molstarAvailable) {
             // MolStar模式已在初始化时加载默认分子
-            console.log("🧪 MolStar模式 - 默认分子已显示");
+            // QUIET: logger.debug("🧪 MolStar模式 - 默认分子已显示");
         } else {
             content.style.padding = '16px';
             content.innerHTML = this.displayUtils.generateWelcomeHTML(this.molstarAvailable);
@@ -1254,16 +970,23 @@ export class ALCHEM3DPanelManager {
         
         this.isInitialized = false;
         this.isVisible = false;
-        console.log("🧪 ALCHEM 3D Panel Manager destroyed");
+        // QUIET: logger.debug("🧪 ALCHEM 3D Panel Manager destroyed");
     }
 }
 
 // =================== 样式应用函数 ===================
 export function applyStyles() {
-    const styleElement = document.createElement('style');
-    styleElement.textContent = display3DStyles;
-    document.head.appendChild(styleElement);
-    console.log("🎨 Display styles applied");
+    const linkElement = document.createElement('link');
+    linkElement.rel = 'stylesheet';
+    linkElement.type = 'text/css';
+    linkElement.href = './extensions/ALCHEM_PropBtn/css/molstar-display.css';
+    linkElement.onload = () => {
+        // QUIET: logger.debug("🎨 Display styles loaded from CSS file");
+    };
+    linkElement.onerror = () => {
+        logger.error("❌ Failed to load display styles CSS file");
+    };
+    document.head.appendChild(linkElement);
 }
 
 // =================== 向后兼容的导出 ===================
@@ -1272,7 +995,7 @@ export { ALCHEM3DPanelManager as default };
 
 // 统一错误处理
 function handleError(error, context = 'Unknown') {
-    console.error(`🧪 ALCHEM UI集成模块错误 [${context}]:`, error);
+    logger.error(`🧪 ALCHEM UI集成模块错误 [${context}]:`, error);
     
     // 可以在这里添加统一的错误报告逻辑
     if (window.ALCHEM_ERROR_HANDLER) {
@@ -1282,7 +1005,7 @@ function handleError(error, context = 'Unknown') {
 
 // 统一日志记录
 function logInfo(message, data = null) {
-    console.log(`🧪 ${message}`, data || '');
+    // QUIET: logger.debug(`🧪 ${message}`, data || '');
     
     // 可以在这里添加统一的日志记录逻辑
     if (window.ALCHEM_LOGGER) {
@@ -1291,4 +1014,4 @@ function logInfo(message, data = null) {
 }
 
 // 模块初始化日志
-console.log("🧪 ALCHEM UI集成模块已加载 - 包含面板管理、显示工具、拖拽缩放和样式功能");
+// QUIET: logger.debug("🧪 ALCHEM UI集成模块已加载 - 包含面板管理、显示工具、拖拽缩放和样式功能");

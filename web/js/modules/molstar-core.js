@@ -6,7 +6,7 @@
 // MolStar库加载函数 - ALCHEM独立版本
 export async function loadMolstarLibrary() {
     return new Promise(async (resolve) => {
-        console.log("🧪 正在加载ALCHEM集成的MolStar库...");
+        // QUIET: console.log("🧪 正在加载ALCHEM集成的MolStar库...");
         
         // 强制加载CSS，不管molstar是否已存在
         const molstarCSSPath = "./extensions/ALCHEM_PropBtn/lib/molstar.css";
@@ -14,7 +14,7 @@ export async function loadMolstarLibrary() {
         // 检查CSS是否已加载
         const existingCSS = document.querySelector('link[href*="molstar.css"]');
         if (!existingCSS) {
-            console.log("🧪 CSS未加载，开始加载...");
+            // QUIET: console.log("🧪 CSS未加载，开始加载...");
             
             const link = document.createElement("link");
             link.rel = "stylesheet";
@@ -24,7 +24,7 @@ export async function loadMolstarLibrary() {
             // 等待CSS加载完成
             const cssLoadPromise = new Promise((cssResolve) => {
                 link.onload = () => {
-                    console.log("🧪 MolStar CSS加载成功:", molstarCSSPath);
+                    // QUIET: console.log("🧪 MolStar CSS加载成功:", molstarCSSPath);
                     cssResolve(true);
                 };
                 link.onerror = () => {
@@ -36,12 +36,12 @@ export async function loadMolstarLibrary() {
             document.head.appendChild(link);
             await cssLoadPromise;
         } else {
-            console.log("🧪 CSS已存在");
+            // QUIET: console.log("🧪 CSS已存在");
         }
         
         // 检查是否已加载molstar JS
         if (window.molstar) {
-            console.log("🧪 MolStar库已存在");
+            // QUIET: console.log("🧪 MolStar库已存在");
             resolve(true);
             return;
         }
@@ -53,17 +53,17 @@ export async function loadMolstarLibrary() {
         const script = document.createElement("script");
         script.src = molstarJSPath;
         script.onload = () => {
-            console.log("🧪 ALCHEM MolStar库加载完成！");
-            console.log("🧪 window.molstar可用:", !!window.molstar);
+            // QUIET: console.log("🧪 ALCHEM MolStar库加载完成！");
+            // QUIET: console.log("🧪 window.molstar可用:", !!window.molstar);
             resolve(true);
         };
         script.onerror = (error) => {
             console.error("🧪 ALCHEM MolStar库加载失败:", error);
-            console.log("🧪 回退到演示模式");
+            // QUIET: console.log("🧪 回退到演示模式");
             resolve(false);
         };
         document.head.appendChild(script);
-        console.log("🧪 开始加载MolStar JS:", molstarJSPath);
+        // QUIET: console.log("🧪 开始加载MolStar JS:", molstarJSPath);
     });
 }
 
@@ -78,14 +78,14 @@ export class MolstarViewer {
     // 初始化MolStar查看器
     async initialize(container) {
         if (!window.molstar || !container) {
-            console.warn("🧪 MolStar不可用，无法初始化3D查看器");
+            // QUIET: console.warn("🧪 MolStar不可用，无法初始化3D查看器");
             return false;
         }
         
         this.container = container;
         
         try {
-            console.log("🧪 正在初始化MolStar查看器...");
+            // QUIET: console.log("🧪 正在初始化MolStar查看器...");
             
             // 创建MolStar查看器实例
             const viewer = await window.molstar.Viewer.create(container, {
@@ -103,7 +103,7 @@ export class MolstarViewer {
             
             this.plugin = viewer.plugin;
             this.isInitialized = true;
-            console.log("🧪 MolStar查看器初始化成功");
+            // QUIET: console.log("🧪 MolStar查看器初始化成功");
             
             // 加载默认分子
             await this.loadDefaultMolecule();
@@ -148,16 +148,16 @@ END`;
             const trajectory = await this.plugin.builders.structure.parseTrajectory(dataObj, 'pdb');
             await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
             
-            console.log("🧪 默认分子(苯环)加载成功");
+            // QUIET: console.log("🧪 默认分子(苯环)加载成功");
         } catch (error) {
-            console.warn("🧪 加载默认分子失败:", error);
+            // QUIET: console.warn("🧪 加载默认分子失败:", error);
         }
     }
     
     // 显示分子数据
     async displayMolecularData(molecularContent, analysis = null) {
         if (!this.plugin || !this.container) {
-            console.warn("🧪 MolStar插件未初始化");
+            // QUIET: console.warn("🧪 MolStar插件未初始化");
             return;
         }
         
@@ -169,7 +169,7 @@ END`;
             if (typeof molecularContent === 'string') {
                 if (molecularContent.includes('HEADER') || molecularContent.includes('ATOM') || molecularContent.includes('HETATM')) {
                     // 直接PDB数据
-                    console.log("🧪 检测到直接PDB数据");
+                    // QUIET: console.log("🧪 检测到直接PDB数据");
                     pdbData = molecularContent;
                     molecularInfo = {
                         pdbData: pdbData,
@@ -178,17 +178,17 @@ END`;
                     };
                 } else {
                     // HTML数据，需要提取
-                    console.log("🧪 检测到HTML数据，正在提取PDB信息");
+                    // QUIET: console.log("🧪 检测到HTML数据，正在提取PDB信息");
                     molecularInfo = this.extractMolecularInfo(molecularContent);
                     pdbData = molecularInfo?.pdbData;
                 }
             } else {
-                console.warn("🧪 无效的分子数据格式");
+                // QUIET: console.warn("🧪 无效的分子数据格式");
                 return;
             }
             
             if (pdbData && pdbData.trim()) {
-                console.log("🧪 在MolStar中渲染分子数据...");
+                // QUIET: console.log("🧪 在MolStar中渲染分子数据...");
                 
                 // 清除当前显示
                 await this.plugin.clear();
@@ -205,10 +205,10 @@ END`;
                 // 应用预设
                 await this.plugin.builders.structure.hierarchy.applyPreset(trajectory, 'default');
                 
-                console.log("🧪 分子在MolStar中渲染成功");
+                // QUIET: console.log("🧪 分子在MolStar中渲染成功");
                 
             } else {
-                console.warn("🧪 无法提取PDB数据，跳过显示");
+                // QUIET: console.warn("🧪 无法提取PDB数据，跳过显示");
                 // 不显示错误信息，直接跳过
             }
             
@@ -251,7 +251,7 @@ END`;
             };
             
         } catch (error) {
-            console.warn("🧪 解析分子信息失败:", error);
+            // QUIET: console.warn("🧪 解析分子信息失败:", error);
             return null;
         }
     }
@@ -259,13 +259,13 @@ END`;
     // 在查看器中显示错误 - 已禁用，不显示错误信息
     showErrorInViewer(errorMessage) {
         // 什么都不做，避免错误信息挡住界面
-        console.warn("🧪 MolStar error (不显示):", errorMessage);
+        // QUIET: console.warn("🧪 MolStar error (不显示):", errorMessage);
     }
     
     // 显示初始化错误 - 已禁用，不显示错误信息
     showInitializationError(container, error) {
         // 什么都不做，避免错误信息挡住界面
-        console.warn("🧪 MolStar init error (不显示):", error.message);
+        // QUIET: console.warn("🧪 MolStar init error (不显示):", error.message);
     }
     
     // 重置视角
@@ -273,9 +273,9 @@ END`;
         if (this.plugin && this.plugin.canvas3d) {
             try {
                 this.plugin.canvas3d.requestCameraReset();
-                console.log("🧪 视角已重置");
+                // QUIET: console.log("🧪 视角已重置");
             } catch (error) {
-                console.warn("🧪 重置视角失败:", error);
+                // QUIET: console.warn("🧪 重置视角失败:", error);
             }
         }
     }
@@ -285,10 +285,10 @@ END`;
         if (this.plugin) {
             try {
                 // 这是一个简化的实现，真实的线框切换需要更复杂的逻辑
-                console.log("🧪 线框模式切换（功能待完善）");
+                // QUIET: console.log("🧪 线框模式切换（功能待完善）");
                 // 在实际应用中，这里需要访问MolStar的representation系统
             } catch (error) {
-                console.warn("🧪 切换线框模式失败:", error);
+                // QUIET: console.warn("🧪 切换线框模式失败:", error);
             }
         }
     }
@@ -299,7 +299,7 @@ END`;
             try {
                 this.plugin.dispose();
             } catch (error) {
-                console.warn("🧪 销毁MolStar查看器失败:", error);
+                // QUIET: console.warn("🧪 销毁MolStar查看器失败:", error);
             }
         }
         this.plugin = null;

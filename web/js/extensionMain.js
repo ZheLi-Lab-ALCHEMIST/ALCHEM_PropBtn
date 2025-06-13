@@ -56,10 +56,11 @@ const EXTENSION_CONFIG = {
     
     // 扩展设置
     settings: {
-        debugMode: true,              // 调试模式
-        logLevel: 'info',            // 日志级别: 'debug', 'info', 'warn', 'error'
+        debugMode: false,             // 调试模式 - 默认关闭
+        logLevel: 'warn',            // 日志级别: 'debug', 'info', 'warn', 'error' - 默认只显示警告
         autoRefresh: true,           // 自动刷新ComfyUI组件
-        enableMetrics: true          // 启用性能监控
+        enableMetrics: false,        // 启用性能监控 - 默认关闭
+        verboseLogging: false        // 详细日志 - 默认关闭
     }
 };
 

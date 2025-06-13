@@ -61,7 +61,7 @@ export class MolecularDataProcessor {
     // 从后端API获取分子数据
     async fetchMolecularDataFromBackend(nodeId) {
         try {
-            console.log(`🚀 Fetching molecular data for node: ${nodeId}`);
+            // QUIET: console.log(`🚀 Fetching molecular data for node: ${nodeId}`);
             
             const apiUrl = '/alchem_propbtn/api/molecular';
             const response = await fetch(apiUrl, {
@@ -80,15 +80,15 @@ export class MolecularDataProcessor {
             }
             
             const responseData = await response.json();
-            console.log(`📡 Backend API response:`, responseData);
+            // QUIET: console.log(`📡 Backend API response:`, responseData);
             
             if (responseData.success) {
-                console.log(`✅ Successfully retrieved molecular data from backend`);
-                console.log(`   - Node ID: ${responseData.data.node_id}`);
-                console.log(`   - Filename: ${responseData.data.filename}`);
-                console.log(`   - Format: ${responseData.data.format_name}`);
-                console.log(`   - Atoms: ${responseData.data.atoms}`);
-                console.log(`   - Access count: ${responseData.data.access_count}`);
+                // QUIET: console.log(`✅ Successfully retrieved molecular data from backend`);
+                // QUIET: console.log(`   - Node ID: ${responseData.data.node_id}`);
+                // QUIET: console.log(`   - Filename: ${responseData.data.filename}`);
+                // QUIET: console.log(`   - Format: ${responseData.data.format_name}`);
+                // QUIET: console.log(`   - Atoms: ${responseData.data.atoms}`);
+                // QUIET: console.log(`   - Access count: ${responseData.data.access_count}`);
             }
             
             return responseData;
@@ -121,7 +121,7 @@ export class MolecularDataProcessor {
             }
             
             const responseData = await response.json();
-            console.log(`📊 Cache status:`, responseData);
+            // QUIET: console.log(`📊 Cache status:`, responseData);
             
             return responseData;
             
@@ -138,25 +138,25 @@ export class MolecularDataProcessor {
     // 通过文件名查找分子数据
     async findMolecularDataByFilename(filename) {
         try {
-            console.log(`🔍 Searching for molecular data by filename: ${filename}`);
+            // QUIET: console.log(`🔍 Searching for molecular data by filename: ${filename}`);
             
             const cacheStatus = await this.fetchCacheStatusFromBackend();
             if (cacheStatus && cacheStatus.success && cacheStatus.data.nodes) {
                 for (const cachedNode of cacheStatus.data.nodes) {
                     if (cachedNode.filename === filename) {
-                        console.log(`🎯 Found matching file in cache: ${filename} (node: ${cachedNode.node_id})`);
+                        // QUIET: console.log(`🎯 Found matching file in cache: ${filename} (node: ${cachedNode.node_id})`);
                         
                         // 使用找到的节点ID获取完整数据
                         const backendData = await this.fetchMolecularDataFromBackend(cachedNode.node_id);
                         if (backendData && backendData.success) {
-                            console.log(`✅ Retrieved data by filename: ${backendData.data.filename}`);
+                            // QUIET: console.log(`✅ Retrieved data by filename: ${backendData.data.filename}`);
                             return backendData;
                         }
                     }
                 }
             }
             
-            console.log(`❌ No data found for filename: ${filename}`);
+            // QUIET: console.log(`❌ No data found for filename: ${filename}`);
             return null;
             
         } catch (error) {
@@ -169,7 +169,7 @@ export class MolecularDataProcessor {
     async readMolecularFileContent(filename) {
         try {
             const fileUrl = `/view?filename=${encodeURIComponent(filename)}&type=input`;
-            console.log(`🧪 Attempting to read molecular file: ${fileUrl}`);
+            // QUIET: console.log(`🧪 Attempting to read molecular file: ${fileUrl}`);
             
             const response = await fetch(fileUrl);
             if (!response.ok) {
@@ -177,7 +177,7 @@ export class MolecularDataProcessor {
             }
             
             const content = await response.text();
-            console.log(`🧪 Successfully read ${content.length} characters from ${filename}`);
+            // QUIET: console.log(`🧪 Successfully read ${content.length} characters from ${filename}`);
             
             return content;
         } catch (error) {
@@ -240,7 +240,7 @@ export class MolecularDataProcessor {
                     analysis.title = filename;
             }
         } catch (error) {
-            console.warn('🧪 Error analyzing molecular content:', error);
+            // QUIET: console.warn('🧪 Error analyzing molecular content:', error);
         }
         
         return analysis;
@@ -250,7 +250,7 @@ export class MolecularDataProcessor {
     getDemoMoleculeData(moleculeName) {
         const molecule = DEMO_MOLECULES[moleculeName];
         if (!molecule) {
-            console.warn(`🧪 Demo molecule not found: ${moleculeName}`);
+            // QUIET: console.warn(`🧪 Demo molecule not found: ${moleculeName}`);
             return DEMO_MOLECULES['benzene']; // 默认返回苯环
         }
         return molecule;
@@ -304,7 +304,7 @@ export class MolecularDataProcessor {
             };
             
         } catch (error) {
-            console.warn("🧪 解析分子信息失败:", error);
+            // QUIET: console.warn("🧪 解析分子信息失败:", error);
             return null;
         }
     }
@@ -313,17 +313,17 @@ export class MolecularDataProcessor {
     generateUniqueNodeId(node) {
         // 检查是否有ComfyUI的唯一标识符
         if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
-            console.log(`🔧 Using ComfyUI unique_id: ${node.graph.runningContext.unique_id}`);
+            // QUIET: console.log(`🔧 Using ComfyUI unique_id: ${node.graph.runningContext.unique_id}`);
             return node.graph.runningContext.unique_id;
         } else if (node._id) {
-            console.log(`🔧 Using node._id: ${node._id}`);
+            // QUIET: console.log(`🔧 Using node._id: ${node._id}`);
             return node._id;
         } else {
             // 使用节点的内存地址或其他唯一标识
             if (!node._uniqueDisplayId) {
                 node._uniqueDisplayId = `${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
-            console.log(`🔧 Generated unique display ID: ${node._uniqueDisplayId}`);
+            // QUIET: console.log(`🔧 Generated unique display ID: ${node._uniqueDisplayId}`);
             return node._uniqueDisplayId;
         }
     }
@@ -351,7 +351,7 @@ export class MolecularDataProcessor {
     // 清理缓存
     clearCache() {
         this.cache.clear();
-        console.log("🧪 Data processor cache cleared");
+        // QUIET: console.log("🧪 Data processor cache cleared");
     }
     
     // 获取缓存统计

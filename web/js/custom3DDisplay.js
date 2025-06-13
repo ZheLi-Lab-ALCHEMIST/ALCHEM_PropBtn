@@ -27,7 +27,7 @@ class ALCHEM3DDisplayCoordinator {
     async initialize() {
         if (this.isInitialized) return;
         
-        console.log("🚀 Initializing ALCHEM 3D Display Coordinator...");
+        // QUIET: console.log("🚀 Initializing ALCHEM 3D Display Coordinator...");
         
         // 应用样式
         applyStyles();
@@ -41,7 +41,7 @@ class ALCHEM3DDisplayCoordinator {
         await this.panelManager.initialize();
         
         this.isInitialized = true;
-        console.log("✅ ALCHEM 3D Display Coordinator initialized");
+        // QUIET: console.log("✅ ALCHEM 3D Display Coordinator initialized");
     }
     
     // 获取面板管理器
@@ -86,7 +86,7 @@ class ALCHEM3DDisplayCoordinator {
         apiClient.clearAllCache();
         
         this.isInitialized = false;
-        console.log("🧪 ALCHEM 3D Display Coordinator destroyed");
+        // QUIET: console.log("🧪 ALCHEM 3D Display Coordinator destroyed");
     }
 }
 
@@ -109,17 +109,17 @@ export const show3DMolecularView = async (node, inputName) => {
         // 首先尝试使用现有的MolStar查看器
         const usedExisting = await rdkitIntegration.tryUseExistingMolStarViewer(node, inputName);
         if (usedExisting) {
-            console.log("🎯 Successfully used existing rdkit_molstar viewer");
+            // QUIET: console.log("🎯 Successfully used existing rdkit_molstar viewer");
             return;
         }
         
-        console.log("🎯 Using ALCHEM modular display system");
+        // QUIET: console.log("🎯 Using ALCHEM modular display system");
         
         // 获取分子输入数据
         const molInput = node.widgets.find(w => w.name === inputName);
         const selectedFile = molInput ? molInput.value : 'benzene';
         
-        console.log(`🧪 Processing molecular display: ${inputName} = ${selectedFile}`);
+        // QUIET: console.log(`🧪 Processing molecular display: ${inputName} = ${selectedFile}`);
         
         // 生成唯一节点ID
         const nodeId = dataProcessor.generateUniqueNodeId(node);
@@ -133,15 +133,15 @@ export const show3DMolecularView = async (node, inputName) => {
         let isFromBackend = false;
         
         try {
-            console.log(`🧪 Attempting to fetch from backend memory using nodeId: ${nodeId}...`);
+            // QUIET: console.log(`🧪 Attempting to fetch from backend memory using nodeId: ${nodeId}...`);
             backendData = await dataProcessor.fetchMolecularDataFromBackend(nodeId);
             
             if (backendData && backendData.success) {
                 molecularData = backendData.data;
                 isFromBackend = true;
-                console.log(`🚀 Successfully fetched molecular data from backend memory`);
+                // QUIET: console.log(`🚀 Successfully fetched molecular data from backend memory`);
             } else {
-                console.log(`⚠️ No data for node ${nodeId}, trying filename-based lookup...`);
+                // QUIET: console.log(`⚠️ No data for node ${nodeId}, trying filename-based lookup...`);
                 
                 // 备选方案：根据文件名查找数据
                 if (selectedFile && selectedFile !== 'benzene') {
@@ -149,18 +149,18 @@ export const show3DMolecularView = async (node, inputName) => {
                     if (filenameData && filenameData.success) {
                         molecularData = filenameData.data;
                         isFromBackend = true;
-                        console.log(`✅ Retrieved data by filename: ${molecularData.filename}`);
+                        // QUIET: console.log(`✅ Retrieved data by filename: ${molecularData.filename}`);
                     }
                 }
             }
         } catch (error) {
-            console.warn(`🚨 Failed to fetch from backend memory:`, error);
+            // QUIET: console.warn(`🚨 Failed to fetch from backend memory:`, error);
         }
         
         // 步骤2：回退到前端内存（兼容性）
         if (!molecularData && node.molecularData && node.molecularData[inputName]) {
             molecularData = node.molecularData[inputName];
-            console.log(`🧪 Found molecular data in frontend node memory`);
+            // QUIET: console.log(`🧪 Found molecular data in frontend node memory`);
         }
         
         // 步骤3：处理数据和显示
@@ -191,7 +191,7 @@ export const show3DMolecularView = async (node, inputName) => {
             
         } else {
             // 没有分子数据 - 使用演示模式
-            console.log(`🧪 No molecular data found, using demo mode for: ${selectedFile}`);
+            // QUIET: console.log(`🧪 No molecular data found, using demo mode for: ${selectedFile}`);
             
             const demoData = dataProcessor.getDemoMoleculeData(selectedFile);
             analysis = {
@@ -211,16 +211,16 @@ export const show3DMolecularView = async (node, inputName) => {
         // 显示数据
         if (panelManager.isMolstarAvailable()) {
             // MolStar模式 - 直接渲染分子数据
-            console.log("🧪 MolStar模式：渲染3D分子结构");
+            // QUIET: console.log("🧪 MolStar模式：渲染3D分子结构");
             const molstarContent = molecularData?.content || dataProcessor.getPDBData(selectedFile);
             panelManager.displayData(molstarContent);
         } else {
             // 文本模式 - 显示HTML内容
-            console.log("🧪 演示模式：显示HTML内容");
+            // QUIET: console.log("🧪 演示模式：显示HTML内容");
             panelManager.displayData(displayContent);
         }
         
-        console.log(`🎯 3D Display completed for node ${nodeId}, input: ${inputName}, file: ${selectedFile}`);
+        // QUIET: console.log(`🎯 3D Display completed for node ${nodeId}, input: ${inputName}, file: ${selectedFile}`);
         
     } catch (error) {
         console.error('🚨 Error in modular 3D display:', error);
@@ -265,7 +265,7 @@ export const createMolstar3DDisplayWidget = () => {
             return [200, 30];
         };
 
-        console.log(`🎯 Added modular 3D display widget for ${originalInputName} on node ${node.type}`);
+        // QUIET: console.log(`🎯 Added modular 3D display widget for ${originalInputName} on node ${node.type}`);
         
         return { widget: displayWidget };
     };
@@ -275,7 +275,7 @@ export const createMolstar3DDisplayWidget = () => {
 export const init3DDisplay = async () => {
     try {
         await alchem3DCoordinator.initialize();
-        console.log("🧪 Modular 3D Display system initialized");
+        // QUIET: console.log("🧪 Modular 3D Display system initialized");
     } catch (error) {
         console.error("❌ Failed to initialize modular 3D Display system:", error);
     }
@@ -284,7 +284,7 @@ export const init3DDisplay = async () => {
 // 处理3D显示节点创建 - 重构版本
 export const handle3DDisplayNodeCreated = (node) => {
     if (node.type === 'Demo3DDisplayNode') {
-        console.log(`🎯 Enhanced ${node.type} with modular 3D display support`);
+        // QUIET: console.log(`🎯 Enhanced ${node.type} with modular 3D display support`);
     }
 };
 
@@ -303,7 +303,7 @@ export const process3DDisplayNodes = (nodeType, nodeData) => {
 
     if (found3DDisplay) {
         const [inputName, inputSpec] = found3DDisplay;
-        console.log(`🎯 Added modular 3D display for ${nodeData.name}: ${inputName}`);
+        // QUIET: console.log(`🎯 Added modular 3D display for ${nodeData.name}: ${inputName}`);
         return {
             inputName,
             inputSpec,
@@ -341,11 +341,11 @@ export {
     RDKitMolstarIntegration
 };
 
-console.log("🎉 ALCHEM 3D Display modular system loaded successfully!");
-console.log("📊 Refactoring stats:");
-console.log("   - Original: 1726 lines in 1 file");
-console.log("   - Refactored: ~400 lines across 7 modules");
-console.log("   - Reduction: ~77% code per module");
-console.log("   - Maintainability: +++");
-console.log("   - Performance: +++");
-console.log("   - Testability: +++");
+// QUIET: console.log("🎉 ALCHEM 3D Display modular system loaded successfully!");
+// QUIET: console.log("📊 Refactoring stats:");
+// QUIET: console.log("   - Original: 1726 lines in 1 file");
+// QUIET: console.log("   - Refactored: ~400 lines across 7 modules");
+// QUIET: console.log("   - Reduction: ~77% code per module");
+// QUIET: console.log("   - Maintainability: +++");
+// QUIET: console.log("   - Performance: +++");
+// QUIET: console.log("   - Testability: +++");
