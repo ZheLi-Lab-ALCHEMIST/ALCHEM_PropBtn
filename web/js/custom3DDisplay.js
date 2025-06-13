@@ -6,13 +6,10 @@
 
 import { app } from "../../../scripts/app.js";
 
-// 导入所有拆分的模块
-import { applyStyles } from './modules/display-styles.js';
+// 导入合并后的模块
 import { loadMolstarLibrary, MolstarViewer, PDBUtils } from './modules/molstar-core.js';
-import { ALCHEM3DPanelManager } from './modules/panel-manager.js';
-import { ResizeController } from './modules/resize-controller.js';
+import { applyStyles, ALCHEM3DPanelManager, ResizeController, DisplayUtils } from './modules/ui-integrated.js';
 import { MolecularDataProcessor } from './modules/data-processor.js';
-import { DisplayUtils } from './modules/display-utils.js';
 import { APIClient, RDKitMolstarIntegration, apiClient, rdkitIntegration } from './modules/api-client.js';
 
 /**

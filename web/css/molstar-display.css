@@ -1,6 +1,4 @@
-// ComfyUI原生风格的3D显示样式
-export const display3DStyles = `
-/* ComfyUI样式变量兼容 */
+/* ComfyUI原生风格的3D显示样式 */
 :root {
     --comfy-menu-bg: #202020;
     --comfy-input-bg: #2a2a2a;
@@ -289,13 +287,4 @@ export const display3DStyles = `
     background: var(--primary-color, #007bff);
     border-radius: 2px;
     transition: width 0.3s ease;
-}
-`;
-
-// 应用样式到文档
-export function applyStyles() {
-    const styleElement = document.createElement('style');
-    styleElement.textContent = display3DStyles;
-    document.head.appendChild(styleElement);
-    console.log("🎨 Display styles applied");
 }
