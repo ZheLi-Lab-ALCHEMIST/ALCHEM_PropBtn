@@ -11,14 +11,16 @@
 
 import asyncio
 import json
-import logging
 import time
 from typing import Dict, Set, Any, Optional
 from aiohttp import web, WSMsgType
 import server
 
-# 获取日志记录器
-logger = logging.getLogger(__name__)
+# 使用统一的ALCHEM日志系统
+from .logging_config import get_websocket_logger
+
+# 初始化统一Logger
+logger = get_websocket_logger()
 
 # 全局WebSocket连接管理
 class WebSocketManager:
@@ -33,7 +35,7 @@ class WebSocketManager:
             'connected_at': time.time(),
             'last_ping': time.time()
         }
-        logger.info(f"🔗 WebSocket客户端连接，当前连接数: {len(self.connections)}")
+        logger.connection(f"WebSocket客户端连接，当前连接数: {len(self.connections)}")
         
         # 发送欢迎消息
         await self.send_to_client(ws, {
@@ -46,7 +48,7 @@ class WebSocketManager:
         """移除WebSocket连接"""
         self.connections.discard(ws)
         self.client_info.pop(ws, None)
-        logger.info(f"❌ WebSocket客户端断开，当前连接数: {len(self.connections)}")
+        logger.connection(f"WebSocket客户端断开，当前连接数: {len(self.connections)}")
     
     async def send_to_client(self, ws: web.WebSocketResponse, message: Dict[str, Any]):
         """发送消息给特定客户端"""
@@ -65,10 +67,10 @@ class WebSocketManager:
     async def broadcast(self, message: Dict[str, Any], exclude_ws: web.WebSocketResponse = None):
         """广播消息给所有连接的客户端"""
         if not self.connections:
-            logger.debug("📡 没有WebSocket连接，跳过广播")
+            logger.debug("没有WebSocket连接，跳过广播")
             return
         
-        logger.info(f"📡 广播消息给 {len(self.connections)} 个客户端: {message.get('type', 'unknown')}")
+        logger.network(f"广播消息给 {len(self.connections)} 个客户端: {message.get('type', 'unknown')}")
         
         # 并发发送给所有客户端
         tasks = []

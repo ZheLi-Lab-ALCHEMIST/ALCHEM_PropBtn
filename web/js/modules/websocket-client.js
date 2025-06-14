@@ -9,17 +9,10 @@
  * 不包含多用户协作，专注于单用户实时同步
  */
 
-// 简单的日志函数
-const logger = {
-    info: (message) => console.log(`[WebSocket] ℹ️ ${message}`),
-    warn: (message) => console.warn(`[WebSocket] ⚠️ ${message}`),
-    error: (message) => console.error(`[WebSocket] ❌ ${message}`),
-    debug: (message) => {
-        if (window.ALCHEM_DEBUG) {
-            console.log(`[WebSocket] 🔧 ${message}`);
-        }
-    }
-};
+import { getWebSocketLogger } from "../utils/logger.js";
+
+// 使用统一的ALCHEM日志系统
+const logger = getWebSocketLogger();
 
 /**
  * WebSocket客户端类

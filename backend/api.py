@@ -7,12 +7,14 @@
 
 import server
 from aiohttp import web
-import logging
 import time
 from typing import Dict, Any
 
-# 获取日志记录器
-logger = logging.getLogger(__name__)
+# 使用统一的ALCHEM日志系统
+from .logging_config import get_api_logger
+
+# 初始化统一Logger
+logger = get_api_logger()
 
 # 导入内存管理
 try:
@@ -24,19 +26,19 @@ try:
         edit_molecular_data
     )
     MEMORY_AVAILABLE = True
-    logger.info("✅ API模块：内存管理器加载成功")
+    logger.success("内存管理器加载成功")
 except ImportError as e:
     MEMORY_AVAILABLE = False
-    logger.error(f"🚨 API模块：内存管理器加载失败 - {e}")
+    logger.error(f"内存管理器加载失败 - {e}")
 
 # 导入WebSocket服务器
 try:
     from .websocket_server import register_websocket_routes, get_websocket_manager
     WEBSOCKET_AVAILABLE = True
-    logger.info("✅ API模块：WebSocket服务器加载成功")
+    logger.success("WebSocket服务器加载成功")
 except ImportError as e:
     WEBSOCKET_AVAILABLE = False
-    logger.error(f"🚨 API模块：WebSocket服务器加载失败 - {e}")
+    logger.error(f"WebSocket服务器加载失败 - {e}")
 
 
 def register_api_routes():
@@ -63,7 +65,7 @@ def register_api_routes():
             request_type = json_data.get("request_type")
             node_id = json_data.get("node_id")
             
-            logger.info(f"🧪 API请求: {request_type}, 节点: {node_id}")
+            logger.debug(f"API请求: {request_type}, 节点: {node_id}")
             
             # 只处理实际使用的API
             if request_type == "get_molecular_data":
@@ -85,7 +87,7 @@ def register_api_routes():
             return web.json_response(response)
             
         except Exception as e:
-            logger.exception(f"🚨 处理分子API请求时出错: {e}")
+            logger.error(f"处理分子API请求时出错: {e}")
             return web.json_response(
                 {"success": False, "error": f"服务器内部错误: {str(e)}"},
                 status=500
@@ -127,7 +129,7 @@ def register_api_routes():
                             try:
                                 file_content = file_content.decode('latin-1')
                             except UnicodeDecodeError:
-                                logger.error(f"🚨 无法解码文件: {filename}")
+                                logger.error(f"无法解码文件: {filename}")
                                 return web.json_response(
                                     {"success": False, "error": f"无法解码文件 {filename}"},
                                     status=400
@@ -149,9 +151,9 @@ def register_api_routes():
             # 使用自定义文件名
             actual_filename = custom_filename if custom_filename else filename
             
-            logger.info(f"🧪 上传分子文件: 节点={node_id}, 文件={actual_filename}")
+            logger.molecular(f"上传分子文件: 节点={node_id}, 文件={actual_filename}")
             if custom_filename:
-                logger.info(f"🔧 使用自定义文件名: {filename} → {actual_filename}")
+                logger.debug(f"使用自定义文件名: {filename} → {actual_filename}")
             
             # 存储到内存
             stored_data = store_molecular_data(
@@ -162,7 +164,7 @@ def register_api_routes():
             )
             
             if stored_data:
-                logger.info(f"✅ 文件已存储: {filename} -> 节点 {node_id}")
+                logger.success(f"文件已存储: {filename} -> 节点 {node_id}")
                 return web.json_response({
                     "success": True,
                     "data": {
@@ -176,14 +178,14 @@ def register_api_routes():
                     "message": f"分子文件 {filename} 上传成功"
                 })
             else:
-                logger.error(f"🚨 存储分子文件失败: {filename}")
+                logger.error(f"存储分子文件失败: {filename}")
                 return web.json_response(
                     {"success": False, "error": "存储分子文件失败"},
                     status=500
                 )
             
         except Exception as e:
-            logger.exception(f"🚨 处理文件上传时出错: {e}")
+            logger.error(f"处理文件上传时出错: {e}")
             return web.json_response(
                 {"success": False, "error": f"服务器内部错误: {str(e)}"},
                 status=500
@@ -229,7 +231,7 @@ def register_api_routes():
             })
             
         except Exception as e:
-            logger.exception(f"🚨 获取系统状态时出错: {e}")
+            logger.error(f"获取系统状态时出错: {e}")
             return web.json_response(
                 {"success": False, "error": f"服务器内部错误: {str(e)}"},
                 status=500
@@ -239,18 +241,18 @@ def register_api_routes():
     if WEBSOCKET_AVAILABLE:
         try:
             register_websocket_routes()
-            logger.info("✅ WebSocket路由注册成功")
+            logger.success("WebSocket路由注册成功")
         except Exception as e:
-            logger.error(f"❌ WebSocket路由注册失败: {e}")
+            logger.error(f"WebSocket路由注册失败: {e}")
     else:
-        logger.warning("⚠️ WebSocket不可用，跳过路由注册")
+        logger.warning("WebSocket不可用，跳过路由注册")
     
-    logger.info("🚀 ALCHEM_PropBtn 简化API路由注册完成")
-    logger.info("   - POST /alchem_propbtn/api/molecular (分子数据操作)")
-    logger.info("   - POST /alchem_propbtn/api/upload_molecular (文件上传)")  
-    logger.info("   - GET /alchem_propbtn/api/status (系统状态)")
+    logger.success("ALCHEM_PropBtn API路由注册完成")
+    logger.info("POST /alchem_propbtn/api/molecular (分子数据操作)")
+    logger.info("POST /alchem_propbtn/api/upload_molecular (文件上传)")  
+    logger.info("GET /alchem_propbtn/api/status (系统状态)")
     if WEBSOCKET_AVAILABLE:
-        logger.info("   - GET /alchem_propbtn/ws (WebSocket实时同步)")
+        logger.info("GET /alchem_propbtn/ws (WebSocket实时同步)")
 
 
 # ====================================================================================================
@@ -285,14 +287,14 @@ async def _handle_get_molecular_data(node_id: str) -> Dict[str, Any]:
                 "processing_complete": molecular_data.get("processing_complete", True)
             }
             
-            logger.info(f"🔍 获取分子数据成功: 节点{node_id}, 文件{optimized_data['filename']}")
+            logger.debug(f"获取分子数据成功: 节点{node_id}, 文件{optimized_data['filename']}")
             return {"success": True, "data": optimized_data}
         else:
-            logger.warning(f"⚠️ 未找到节点 {node_id} 的数据")
+            logger.warning(f"未找到节点 {node_id} 的数据")
             return {"success": False, "error": f"未找到节点 {node_id} 的分子数据"}
             
     except Exception as e:
-        logger.error(f"🚨 获取分子数据失败: {e}")
+        logger.error(f"获取分子数据失败: {e}")
         return {"success": False, "error": f"获取分子数据失败: {str(e)}"}
 
 
@@ -300,10 +302,10 @@ async def _handle_get_cache_status() -> Dict[str, Any]:
     """获取缓存状态"""
     try:
         status = get_cache_status()
-        logger.info(f"📊 缓存状态: {status.get('total_nodes', 0)}个节点")
+        logger.debug(f"缓存状态: {status.get('total_nodes', 0)}个节点")
         return {"success": True, "data": status}
     except Exception as e:
-        logger.error(f"🚨 获取缓存状态失败: {e}")
+        logger.error(f"获取缓存状态失败: {e}")
         return {"success": False, "error": f"获取缓存状态失败: {str(e)}"}
 
 
@@ -313,13 +315,13 @@ async def _handle_clear_cache(node_id: str = None) -> Dict[str, Any]:
         success = clear_cache(node_id)
         if success:
             message = f"成功清除节点 {node_id} 的缓存" if node_id else "成功清除所有缓存"
-            logger.info(f"🗑️ {message}")
+            logger.storage(f"{message}")
             return {"success": True, "data": {"message": message}}
         else:
-            logger.warning("⚠️ 清除缓存失败")
+            logger.warning("清除缓存失败")
             return {"success": False, "error": "清除缓存失败"}
     except Exception as e:
-        logger.error(f"🚨 清除缓存出错: {e}")
+        logger.error(f"清除缓存出错: {e}")
         return {"success": False, "error": f"清除缓存出错: {str(e)}"}
 
 
@@ -335,7 +337,7 @@ async def _handle_edit_molecular_data(node_id: str, edit_type: str) -> Dict[str,
         edited_data = edit_molecular_data(node_id, edit_type)
         
         if edited_data:
-            logger.info(f"🧪 编辑成功: 节点 {node_id}, 类型 {edit_type}")
+            logger.success(f"编辑成功: 节点 {node_id}, 类型 {edit_type}")
             return {
                 "success": True, 
                 "data": {
@@ -348,11 +350,11 @@ async def _handle_edit_molecular_data(node_id: str, edit_type: str) -> Dict[str,
                 "message": f"成功执行编辑: {edit_type}"
             }
         else:
-            logger.warning(f"⚠️ 编辑失败: 节点 {node_id}, 类型 {edit_type}")
+            logger.warning(f"编辑失败: 节点 {node_id}, 类型 {edit_type}")
             return {"success": False, "error": f"编辑失败或无变化"}
             
     except Exception as e:
-        logger.error(f"🚨 编辑分子数据失败: {e}")
+        logger.error(f"编辑分子数据失败: {e}")
         return {"success": False, "error": f"编辑分子数据失败: {str(e)}"}
 
 

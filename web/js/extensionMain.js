@@ -1,5 +1,11 @@
 import { app } from "../../../scripts/app.js";
 
+// 导入统一的ALCHEM日志系统
+import { getExtensionLogger } from "./utils/logger.js";
+
+// 初始化扩展主Logger
+const logger = getExtensionLogger();
+
 // 导入分子文件上传模块
 import {
     initMolecularUpload,
@@ -68,34 +74,7 @@ const EXTENSION_CONFIG = {
     }
 };
 
-// 统一日志处理系统
-const logger = {
-    debug: (message, module = 'MAIN') => {
-        if (EXTENSION_CONFIG.settings.logLevel === 'debug') {
-            console.debug(`[${EXTENSION_CONFIG.modules[module]?.name || module}] 🐛 ${message}`);
-        }
-    },
-    info: (message, module = 'MAIN') => {
-        if (['debug', 'info'].includes(EXTENSION_CONFIG.settings.logLevel)) {
-            console.log(`[${EXTENSION_CONFIG.modules[module]?.name || module}] ℹ️ ${message}`);
-        }
-    },
-    warn: (message, module = 'MAIN') => {
-        if (['debug', 'info', 'warn'].includes(EXTENSION_CONFIG.settings.logLevel)) {
-            console.warn(`[${EXTENSION_CONFIG.modules[module]?.name || module}] ⚠️ ${message}`);
-        }
-    },
-    error: (message, module = 'MAIN') => {
-        console.error(`[${EXTENSION_CONFIG.modules[module]?.name || module}] ❌ ${message}`);
-    },
-    
-    // 简单日志函数 - 供其他文件使用，在debug模式下显示QUIET注释
-    quiet: (message) => {
-        if (EXTENSION_CONFIG.settings.logLevel === 'debug') {
-            console.log(`🗿 ${message}`);
-        }
-    }
-};
+// 旧的日志系统已被统一的ALCHEM日志系统替代
 
 // 初始化所有模块
 const initializeModules = () => {
@@ -104,11 +83,11 @@ const initializeModules = () => {
         
         // 初始化分子文件上传模块
         initMolecularUpload();
-        logger.info("Molecular upload module initialized", 'molecularUpload');
+        logger.info("Molecular upload module initialized");
         
         // 初始化3D显示模块
         init3DDisplay();
-        logger.info("3D display module initialized", 'display3D');
+        logger.info("3D display module initialized");
         
         logger.info(`Extension ${EXTENSION_CONFIG.displayName} initialized successfully`);
     } catch (error) {
@@ -153,7 +132,7 @@ const beforeRegisterNodeDef = (nodeType, nodeData) => {
         const molecularUploadResult = processMolecularUploadNodes(nodeType, nodeData);
         if (molecularUploadResult) {
             required.molecular_upload = molecularUploadResult.molecular_upload;
-            logger.debug(`Processed molecular upload node: ${nodeData.name}`, 'molecularUpload');
+            logger.debug(`Processed molecular upload node: ${nodeData.name}`);
             processed = true;
         }
         
@@ -161,7 +140,7 @@ const beforeRegisterNodeDef = (nodeType, nodeData) => {
         const display3DResult = process3DDisplayNodes(nodeType, nodeData);
         if (display3DResult) {
             required.molstar_3d = display3DResult.molstar_3d;
-            logger.debug(`Processed 3D display node: ${nodeData.name}`, 'display3D');
+            logger.debug(`Processed 3D display node: ${nodeData.name}`);
             processed = true;
         }
 
@@ -219,7 +198,7 @@ const updateStatus = (action, details) => {
     }
     
     if (EXTENSION_CONFIG.settings.enableMetrics) {
-        logger.debug(`Status updated: ${action}`, 'MAIN');
+        logger.debug(`Status updated: ${action}`);
     }
 };
 
@@ -251,7 +230,7 @@ window.getCustomWidgetStatus = () => {
 
 // 🆕 多tab调试工具
 window.debugMultiTabMemory = () => {
-    console.log("🔧 多Tab内存调试工具");
+    logger.debug(" 多Tab内存调试工具");
     console.log("====================");
     
     // 显示当前所有节点的ID生成
@@ -292,7 +271,7 @@ window.debugMultiTabMemory = () => {
 
 // 🧪 内存和节点ID调试工具
 window.debugNodeIds = () => {
-    console.log("🧪 节点ID和内存调试工具");
+    logger.debug(" 节点ID和内存调试工具");
     console.log("========================");
     
     if (window.app && window.app.graph && window.app.graph.nodes) {
@@ -329,7 +308,7 @@ window.debugNodeIds = () => {
 
 // 🚀 WebSocket调试工具
 window.debugWebSocket = () => {
-    console.log("🚀 WebSocket实时同步调试工具");
+    logger.debug(" WebSocket实时同步调试工具");
     console.log("============================");
     
     // 检查WebSocket客户端状态
@@ -382,7 +361,7 @@ window.debugWebSocket = () => {
 
 // 🧪 测试节点ID一致性
 window.testNodeIdConsistency = () => {
-    console.log("🧪 测试节点ID生成一致性");
+    logger.debug(" 测试节点ID生成一致性");
     console.log("========================");
     
     if (window.app && window.app.graph && window.app.graph.nodes) {

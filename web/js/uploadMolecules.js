@@ -1,30 +1,9 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
+import { getUploadLogger } from "./utils/logger.js";
 
-// 简单的日志函数，避免循环依赖
-const logger = {
-    info: (message, module = 'molecularUpload') => {
-        if (typeof message === 'string') {
-            console.log(`[${module}] ℹ️ ${message}`);
-        } else {
-            console.log(`[molecularUpload] ℹ️ ${message}`);
-        }
-    },
-    error: (message, module = 'molecularUpload') => {
-        if (typeof message === 'string') {
-            console.error(`[${module}] ❌ ${message}`);
-        } else {
-            console.error(`[molecularUpload] ❌ ${message}`);
-        }
-    },
-    warn: (message, module = 'molecularUpload') => {
-        if (typeof message === 'string') {
-            console.warn(`[${module}] ⚠️ ${message}`);
-        } else {
-            console.warn(`[molecularUpload] ⚠️ ${message}`);
-        }
-    }
-};
+// 使用统一的ALCHEM日志系统
+const logger = getUploadLogger();
 
 /**
  * 🧪 分子文件上传模块 (uploadMolecules.js)
@@ -435,7 +414,7 @@ export const uploadMolecularFileToBackend = async (file, molecularFolder, nodeId
 
     try {
         const displayName = customFileName || file.name;
-        logger.info(`🧪 Uploading molecular file to backend memory: ${displayName} -> node ${nodeId}`, 'molecularUpload');
+        logger.molecular(`Uploading molecular file to backend memory: ${displayName} -> node ${nodeId}`);
         
         const response = await fetch('/alchem_propbtn/api/upload_molecular', {
             method: 'POST',
@@ -445,7 +424,7 @@ export const uploadMolecularFileToBackend = async (file, molecularFolder, nodeId
         if (response.status === 200) {
             const result = await response.json();
             if (result.success) {
-                logger.info(`🚀 Successfully uploaded to backend memory:`, 'molecularUpload');
+                logger.success(`Successfully uploaded to backend memory:`);
                 return result;
             } else {
                 throw new Error(result.error || 'Backend storage failed');
@@ -455,7 +434,7 @@ export const uploadMolecularFileToBackend = async (file, molecularFolder, nodeId
             throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
         }
     } catch (error) {
-        logger.error('🧪 Backend molecular upload error:', 'molecularUpload');
+        logger.error('Backend molecular upload error:');
         throw error;
     }
 };
@@ -479,7 +458,7 @@ export const uploadMolecularFile = async (file, molecularFolder) => {
             throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
         }
     } catch (error) {
-        logger.error('🧪 Molecular upload error:', 'molecularUpload');
+        logger.error('Molecular upload error:');
         throw error;
     }
 };
@@ -488,7 +467,7 @@ export const uploadMolecularFile = async (file, molecularFolder) => {
 export const createMolecularUploadHandler = (molecularFolder, comboWidget, progressContainer, progressBar, infoContainer) => {
     return async (file) => {
         try {
-            logger.info(`🧪 Starting molecular upload: ${file.name}`, 'molecularUpload');
+            logger.info(`🧪 Starting molecular upload: ${file.name}`);
             
             // 🎯 获取节点ID - 这是关键！
             const node = findNodeByWidget(comboWidget);
@@ -499,7 +478,7 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             // 🔧 修复：生成tab感知的唯一节点ID
             const tabAwareNodeId = generateTabAwareNodeId(node);
             
-            logger.info(`🎯 Uploading for node ID: ${node.id} (tab-aware: ${tabAwareNodeId})`, 'molecularUpload');
+            logger.info(`🎯 Uploading for node ID: ${node.id} (tab-aware: ${tabAwareNodeId})`);
             
             // 显示进度条和信息容器
             progressContainer.style.display = 'block';
@@ -538,26 +517,26 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             const fileSystemResult = await uploadMolecularFile(file, molecularFolder);
             progressBar.style.width = '85%';
             
-            logger.info(`✅ 文件已保存到文件系统: ${fileSystemResult}`, 'molecularUpload');
+            logger.info(`✅ 文件已保存到文件系统: ${fileSystemResult}`);
             
             // 🔧 关键修复：检查文件系统是否重命名了文件
             const actualFileName = fileSystemResult.includes('/') ? 
                 fileSystemResult.split('/').pop() : fileSystemResult;
             
             if (actualFileName !== backendData.filename) {
-                logger.info(`🔧 File was renamed by ComfyUI: ${backendData.filename} → ${actualFileName}`, 'molecularUpload');
-                logger.info(`🔄 Updating backend memory with actual filename...`, 'molecularUpload');
+                logger.info(`🔧 File was renamed by ComfyUI: ${backendData.filename} → ${actualFileName}`);
+                logger.info(`🔄 Updating backend memory with actual filename...`);
                 
                 // 重新上传到后端内存，使用实际的文件名
                 try {
                     const syncResult = await uploadMolecularFileToBackend(file, molecularFolder, tabAwareNodeId, actualFileName);
                     if (syncResult.success) {
-                        logger.info(`✅ Backend memory synced with actual filename: ${actualFileName}`, 'molecularUpload');
+                        logger.info(`✅ Backend memory synced with actual filename: ${actualFileName}`);
                         // 更新backendData为同步后的结果
                         Object.assign(backendData, syncResult.data);
                     }
                 } catch (syncError) {
-                    logger.warn(`⚠️ Failed to sync backend memory with actual filename:`, 'molecularUpload');
+                    logger.warn(`⚠️ Failed to sync backend memory with actual filename:`);
                 }
             }
             
@@ -600,12 +579,12 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
                 infoContainer.style.display = 'none';
             }, 3000);
             
-            logger.info(`🚀 Successfully completed dual upload:`, 'molecularUpload');
-            logger.info(`   💾 File system: ${fileSystemResult}`, 'molecularUpload');
-            logger.info(`   🚀 Backend memory: ${backendData.filename} -> node ${tabAwareNodeId}`, 'molecularUpload');
+            logger.success(`Successfully completed dual upload:`);
+            logger.info(`   💾 File system: ${fileSystemResult}`);
+            logger.info(`   🚀 Backend memory: ${backendData.filename} -> node ${tabAwareNodeId}`);
             
         } catch (error) {
-            logger.error('🧪 Molecular upload failed:', 'molecularUpload');
+            logger.error('Molecular upload failed:');
             
             // 显示错误信息
             progressContainer.style.display = 'none';
@@ -644,7 +623,7 @@ const findNodeByWidget = (widget) => {
         }
     }
     
-    logger.warn('🧪 Could not find node for widget:', 'molecularUpload');
+    logger.warn('🧪 Could not find node for widget:');
     return null;
 };
 
@@ -657,18 +636,18 @@ const generateTabAwareNodeId = (node) => {
         if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
             const baseId = node.graph.runningContext.unique_id;
             const tabAwareId = `${tabId}_${baseId}`;
-            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${tabAwareId} (runningContext)`, 'molecularUpload');
+            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${tabAwareId} (runningContext)`);
             return tabAwareId;
         } else if (node._id) {
             const tabAwareId = `${tabId}_${node._id}`;
-            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${tabAwareId} (node._id)`, 'molecularUpload');
+            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${tabAwareId} (node._id)`);
             return tabAwareId;
         } else {
             // 使用节点的内存地址或其他唯一标识
             if (!node._uniqueDisplayId) {
                 node._uniqueDisplayId = `${tabId}_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             }
-            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${node._uniqueDisplayId} (generated)`, 'molecularUpload');
+            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${node._uniqueDisplayId} (generated)`);
             return node._uniqueDisplayId;
         }
     } catch (error) {
@@ -766,7 +745,7 @@ export const createMolecularUploadWidget = () => {
         // 找到关联的combo widget
         const comboWidget = node.widgets.find(w => w.name === originalInputName);
         if (!comboWidget) {
-            logger.error(`🧪 Could not find combo widget for ${originalInputName}`, 'molecularUpload');
+            logger.error(`🧪 Could not find combo widget for ${originalInputName}`);
             return { widget: null };
         }
 
@@ -809,7 +788,7 @@ export const createMolecularUploadWidget = () => {
         
         uploadWidget.element = containerElement;
         
-        logger.info(`🧪 Added molecular upload widget for ${originalInputName} (folder: ${molecularFolder}) on node ${node.type}`, 'molecularUpload');
+        logger.info(`🧪 Added molecular upload widget for ${originalInputName} (folder: ${molecularFolder}) on node ${node.type}`);
         
         return { widget: uploadWidget };
     };
@@ -841,7 +820,7 @@ export const addMolecularDragAndDropSupport = (node, molecularFolder) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                logger.info(`🧪 Molecular drag & drop detected: ${file.name}`, 'molecularUpload');
+                logger.info(`🧪 Molecular drag & drop detected: ${file.name}`);
                 
                 // 找到分子上传widget并触发上传
                 const uploadWidget = node.widgets.find(w => 
@@ -875,7 +854,7 @@ export const addMolecularDragAndDropSupport = (node, molecularFolder) => {
         }
     };
     
-    logger.info(`🧪 Added molecular drag & drop support to node ${node.id}`, 'molecularUpload');
+    logger.info(`🧪 Added molecular drag & drop support to node ${node.id}`);
 };
 
 // 初始化分子上传功能
@@ -885,7 +864,7 @@ export const initMolecularUpload = () => {
     styleElement.textContent = molecularUploadStyles;
     document.head.appendChild(styleElement);
     
-    logger.info("🧪 Molecular Upload module initialized", 'molecularUpload');
+    logger.info("🧪 Molecular Upload module initialized");
 };
 
 // 处理分子上传节点创建
@@ -902,7 +881,7 @@ export const handleMolecularUploadNodeCreated = (node) => {
         // 添加拖拽支持
         setTimeout(() => addMolecularDragAndDropSupport(node, molecularFolder), 100);
         
-        logger.info(`🧪 Enhanced ${node.type} with molecular drag&drop support`, 'molecularUpload');
+        logger.info(`🧪 Enhanced ${node.type} with molecular drag&drop support`);
     }
 };
 
@@ -919,7 +898,7 @@ export const processMolecularUploadNodes = (nodeType, nodeData) => {
 
     if (foundMolecularUpload) {
         const [inputName, inputSpec] = foundMolecularUpload;
-        logger.info(`🧪 Added molecular upload for ${nodeData.name}: ${inputName}`, 'molecularUpload');
+        logger.info(`🧪 Added molecular upload for ${nodeData.name}: ${inputName}`);
         return {
             inputName,
             inputSpec,

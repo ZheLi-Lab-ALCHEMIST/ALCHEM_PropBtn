@@ -8,21 +8,23 @@
 import os
 import time
 import threading
-import logging
 from typing import Dict, Any, Optional
 import folder_paths
 
-# 设置日志
-logger = logging.getLogger(__name__)
+# 使用统一的ALCHEM日志系统
+from .logging_config import get_memory_logger
+
+# 初始化统一Logger
+logger = get_memory_logger()
 
 # 尝试导入WebSocket通知功能
 try:
     from .websocket_server import notify_molecular_update, notify_molecular_edit, notify_molecular_delete
     WEBSOCKET_NOTIFY_AVAILABLE = True
-    logger.info("✅ 内存管理器：WebSocket通知功能加载成功")
+    logger.success("WebSocket通知功能加载成功")
 except ImportError as e:
     WEBSOCKET_NOTIFY_AVAILABLE = False
-    logger.warning(f"⚠️ 内存管理器：WebSocket通知功能不可用 - {e}")
+    logger.warning(f"WebSocket通知功能不可用 - {e}")
     
     # 创建空的通知函数，避免代码报错
     def notify_molecular_update(node_id, data):
@@ -69,14 +71,14 @@ class MolecularDataManager:
             try:
                 # 验证必需参数
                 if not node_id or not filename:
-                    logger.error("🚨 存储失败：节点ID和文件名不能为空")
+                    logger.error("存储失败：节点ID和文件名不能为空")
                     return None
                 
                 if not content:
-                    logger.error("🚨 存储失败：文件内容不能为空")
+                    logger.error("存储失败：文件内容不能为空")
                     return None
                 
-                logger.info(f"🧪 存储分子数据: 节点{node_id}, 文件{filename}")
+                logger.molecular(f"存储分子数据: 节点{node_id}, 文件{filename}")
                 
                 # 检测基本格式信息
                 file_format = cls._detect_format(filename)
@@ -112,22 +114,22 @@ class MolecularDataManager:
                 try:
                     cls._save_to_filesystem(filename, folder, content)
                 except Exception as e:
-                    logger.warning(f"⚠️ 文件系统保存失败: {e}")
+                    logger.warning(f"文件系统保存失败: {e}")
                 
-                logger.info(f"✅ 分子数据存储成功: {filename} -> 节点 {node_id}")
+                logger.success(f"分子数据存储成功: {filename} -> 节点 {node_id}")
                 
                 # 🚀 发送WebSocket通知
                 if WEBSOCKET_NOTIFY_AVAILABLE:
                     try:
                         notify_molecular_update(node_id, molecular_data)
-                        logger.debug(f"📡 已发送WebSocket更新通知: 节点 {node_id}")
+                        logger.network(f"已发送WebSocket更新通知: 节点 {node_id}")
                     except Exception as e:
-                        logger.warning(f"⚠️ 发送WebSocket通知失败: {e}")
+                        logger.warning(f"发送WebSocket通知失败: {e}")
                 
                 return molecular_data
                 
             except Exception as e:
-                logger.exception(f"🚨 存储分子数据时出错: {e}")
+                logger.error(f"存储分子数据时出错: {e}")
                 return None
     
     @classmethod
@@ -150,14 +152,14 @@ class MolecularDataManager:
                     data["last_accessed"] = time.time()
                     data["access_count"] = data.get("access_count", 0) + 1
                     
-                    logger.debug(f"🔍 获取分子数据: 节点{node_id}, 文件{data.get('filename')}")
+                    logger.debug(f"获取分子数据: 节点{node_id}, 文件{data.get('filename')}")
                     return data
                 else:
-                    logger.debug(f"⚠️ 节点 {node_id} 的数据不存在")
+                    logger.debug(f"节点 {node_id} 的数据不存在")
                     return None
                     
             except Exception as e:
-                logger.exception(f"🚨 获取分子数据时出错: {e}")
+                logger.error(f"获取分子数据时出错: {e}")
                 return None
     
     @classmethod
@@ -196,7 +198,7 @@ class MolecularDataManager:
                 }
                 
             except Exception as e:
-                logger.exception(f"🚨 获取缓存状态时出错: {e}")
+                logger.error(f"获取缓存状态时出错: {e}")
                 return {"error": str(e)}
     
     @classmethod
@@ -215,12 +217,12 @@ class MolecularDataManager:
         with CACHE_LOCK:
             try:
                 # 🔧 调试：显示缓存中的所有节点ID
-                logger.info(f"🔍 尝试编辑节点: {node_id}")
-                logger.info(f"🔍 缓存中的节点ID列表: {list(MOLECULAR_DATA_CACHE.keys())}")
+                logger.debug(f"尝试编辑节点: {node_id}")
+                logger.debug(f"缓存中的节点ID列表: {list(MOLECULAR_DATA_CACHE.keys())}")
                 
                 if node_id not in MOLECULAR_DATA_CACHE:
-                    logger.warning(f"⚠️ 节点 {node_id} 的数据不存在，无法编辑")
-                    logger.warning(f"⚠️ 可用的节点ID: {list(MOLECULAR_DATA_CACHE.keys())}")
+                    logger.warning(f"节点 {node_id} 的数据不存在，无法编辑")
+                    logger.warning(f"可用的节点ID: {list(MOLECULAR_DATA_CACHE.keys())}")
                     return None
                 
                 molecular_data = MOLECULAR_DATA_CACHE[node_id]
@@ -228,9 +230,9 @@ class MolecularDataManager:
                 
                 if edit_type == "remove_last_atom":
                     # 🧪 简单编辑：删除PDB中最后一个原子
-                    logger.info(f"🧪 开始编辑: {edit_type}, 原始内容长度: {len(original_content)}")
+                    logger.molecular(f"开始编辑: {edit_type}, 原始内容长度: {len(original_content)}")
                     edited_content = cls._remove_last_atom_from_pdb(original_content)
-                    logger.info(f"🧪 编辑完成: 新内容长度: {len(edited_content)}")
+                    logger.molecular(f"编辑完成: 新内容长度: {len(edited_content)}")
                     
                     if edited_content != original_content:
                         # 更新数据
@@ -244,7 +246,7 @@ class MolecularDataManager:
                             "description": "删除最后一个原子"
                         })
                         
-                        logger.info(f"🧪 编辑成功: 节点 {node_id} 删除最后一个原子")
+                        logger.success(f"编辑成功: 节点 {node_id} 删除最后一个原子")
                         
                         # 🚀 发送WebSocket编辑通知
                         if WEBSOCKET_NOTIFY_AVAILABLE:
@@ -256,21 +258,21 @@ class MolecularDataManager:
                                     "timestamp": time.time()
                                 }
                                 notify_molecular_edit(node_id, edit_info)
-                                logger.debug(f"📡 已发送WebSocket编辑通知: 节点 {node_id}")
+                                logger.network(f"已发送WebSocket编辑通知: 节点 {node_id}")
                             except Exception as e:
-                                logger.warning(f"⚠️ 发送WebSocket编辑通知失败: {e}")
+                                logger.warning(f"发送WebSocket编辑通知失败: {e}")
                         
                         return molecular_data
                     else:
-                        logger.warning(f"⚠️ 编辑无效果: 节点 {node_id}")
+                        logger.warning(f"编辑无效果: 节点 {node_id}")
                         return None
                         
                 else:
-                    logger.warning(f"⚠️ 不支持的编辑类型: {edit_type}")
+                    logger.warning(f"不支持的编辑类型: {edit_type}")
                     return None
                     
             except Exception as e:
-                logger.exception(f"🚨 编辑分子数据时出错: {e}")
+                logger.error(f"编辑分子数据时出错: {e}")
                 return None
     
     @classmethod
@@ -289,18 +291,18 @@ class MolecularDataManager:
                 if node_id:
                     if node_id in MOLECULAR_DATA_CACHE:
                         del MOLECULAR_DATA_CACHE[node_id]
-                        logger.info(f"🗑️ 清除节点 {node_id} 的缓存")
+                        logger.storage(f"清除节点 {node_id} 的缓存")
                         return True
                     else:
-                        logger.warning(f"⚠️ 节点 {node_id} 不存在")
+                        logger.warning(f"节点 {node_id} 不存在")
                         return False
                 else:
                     MOLECULAR_DATA_CACHE.clear()
-                    logger.info("🗑️ 清除所有缓存")
+                    logger.storage("清除所有缓存")
                     return True
                     
             except Exception as e:
-                logger.exception(f"🚨 清除缓存时出错: {e}")
+                logger.error(f"清除缓存时出错: {e}")
                 return False
     
     # ====================================================================================================
@@ -363,10 +365,10 @@ class MolecularDataManager:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
                 
-            logger.debug(f"💾 文件已保存: {file_path}")
+            logger.storage(f"文件已保存: {file_path}")
             
         except Exception as e:
-            logger.warning(f"⚠️ 文件系统保存失败: {e}")
+            logger.warning(f"文件系统保存失败: {e}")
             raise
     
     @staticmethod
@@ -382,7 +384,7 @@ class MolecularDataManager:
         """
         try:
             lines = content.split('\n')
-            logger.info(f"🧪 解析PDB: 总行数 {len(lines)}")
+            logger.molecular(f"解析PDB: 总行数 {len(lines)}")
             
             # 找到所有原子行的索引
             atom_line_indices = []
@@ -390,16 +392,16 @@ class MolecularDataManager:
                 if line.startswith('ATOM') or line.startswith('HETATM'):
                     atom_line_indices.append(i)
             
-            logger.info(f"🧪 找到 {len(atom_line_indices)} 个原子行")
+            logger.molecular(f"找到 {len(atom_line_indices)} 个原子行")
             
             if not atom_line_indices:
-                logger.warning(f"⚠️ 没有找到ATOM或HETATM行，无法删除原子")
+                logger.warning(f"没有找到ATOM或HETATM行，无法删除原子")
                 return content
             
             # 删除最后一个原子行
             last_atom_index = atom_line_indices[-1]
             removed_line = lines[last_atom_index]
-            logger.info(f"🧪 删除第 {last_atom_index+1} 行原子: {removed_line[:50]}...")
+            logger.molecular(f"删除第 {last_atom_index+1} 行原子: {removed_line[:50]}...")
             
             # 创建新的行列表，跳过最后一个原子行
             result_lines = []
@@ -408,12 +410,12 @@ class MolecularDataManager:
                     result_lines.append(line)
             
             result_content = '\n'.join(result_lines)
-            logger.info(f"🧪 编辑完成: {len(lines)} → {len(result_lines)} 行")
+            logger.molecular(f"编辑完成: {len(lines)} → {len(result_lines)} 行")
             
             return result_content
             
         except Exception as e:
-            logger.error(f"🚨 删除原子失败: {e}")
+            logger.error(f"删除原子失败: {e}")
             return content  # 返回原始内容
 
 
