@@ -1,6 +1,7 @@
 import { app } from "../../../scripts/app.js";
 import { api } from "../../../scripts/api.js";
 import { getUploadLogger } from "./utils/logger.js";
+import { MolecularDataProcessor } from "./modules/data-processor.js";
 
 // 使用统一的ALCHEM日志系统
 const logger = getUploadLogger();
@@ -475,8 +476,10 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
                 throw new Error('无法获取节点ID，上传失败');
             }
             
-            // 🔧 修复：生成tab感知的唯一节点ID
-            const tabAwareNodeId = generateTabAwareNodeId(node);
+            // 🔧 直接使用稳定的节点ID生成机制
+            const dataProcessor = new MolecularDataProcessor();
+            const tabAwareNodeId = dataProcessor.generateUniqueNodeId(node);
+            console.log(`✅ 上传使用新的稳定ID算法: ${tabAwareNodeId}`);
             
             logger.info(`🎯 Uploading for node ID: ${node.id} (tab-aware: ${tabAwareNodeId})`);
             

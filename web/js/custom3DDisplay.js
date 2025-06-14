@@ -286,46 +286,10 @@ export const editMolecularData = async (node, inputName, editType) => {
     try {
         console.log(`🧪 开始编辑分子数据: 节点 ${node.id}, 类型 ${editType}`);
         
-        // 生成tab感知的节点ID
+        // 生成稳定的节点ID
         const dataProcessor = alchem3DCoordinator.getDataProcessor();
         const nodeId = dataProcessor.generateUniqueNodeId(node);
         console.log(`🔧 编辑使用的节点ID: ${nodeId}`);
-        
-        // 🎯 智能跨Tab查找：如果当前节点ID没有数据，尝试根据文件名查找
-        let actualNodeId = nodeId;
-        
-        // 先检查当前节点ID是否有数据
-        const checkResponse = await fetch('/alchem_propbtn/api/molecular', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                request_type: 'get_molecular_data',
-                node_id: nodeId
-            })
-        });
-        const checkResult = await checkResponse.json();
-        
-        if (!checkResult.success) {
-            // 当前节点ID没有数据，尝试根据文件名查找
-            const inputWidget = node.widgets?.find(w => w.name === inputName);
-            const selectedFile = inputWidget?.value;
-            
-            if (selectedFile && selectedFile !== 'benzene') {
-                console.log(`🔍 当前节点ID无数据，尝试根据文件名查找: ${selectedFile}`);
-                const filenameData = await dataProcessor.findMolecularDataByFilename(selectedFile);
-                
-                if (filenameData && filenameData.success) {
-                    actualNodeId = filenameData.data.node_id;
-                    console.log(`✅ 根据文件名找到数据，使用节点ID: ${actualNodeId}`);
-                } else {
-                    throw new Error(`找不到文件 ${selectedFile} 的分子数据`);
-                }
-            } else {
-                throw new Error('没有选择有效的分子文件');
-            }
-        }
         
         // 调用后端编辑API
         const response = await fetch('/alchem_propbtn/api/molecular', {
@@ -335,7 +299,7 @@ export const editMolecularData = async (node, inputName, editType) => {
             },
             body: JSON.stringify({
                 request_type: 'edit_molecular_data',
-                node_id: actualNodeId,
+                node_id: nodeId,
                 edit_type: editType
             })
         });

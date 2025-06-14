@@ -254,72 +254,124 @@ export class MolecularDataProcessor {
         // 🔧 关键修复：生成tab感知的唯一ID
         const tabId = this.getTabId(node);
         
-        // 检查是否有ComfyUI的唯一标识符
+        // 🎯 改进的节点ID生成策略：使用稳定的节点标识符
+        
+        // 优先级1: ComfyUI的运行时唯一标识符（最稳定）
         if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
             const baseId = node.graph.runningContext.unique_id;
             const tabAwareId = `${tabId}_${baseId}`;
-            console.log(`🔧 3D显示Tab感知ID: ${node.id} → ${tabAwareId} (runningContext)`);
+            console.log(`🔧 节点ID生成: ${node.id} → ${tabAwareId} (runningContext)`);
             return tabAwareId;
-        } else if (node._id) {
-            const tabAwareId = `${tabId}_${node._id}`;
-            console.log(`🔧 3D显示Tab感知ID: ${node.id} → ${tabAwareId} (node._id)`);
-            return tabAwareId;
-        } else {
-            // 使用节点的内存地址或其他唯一标识
-            if (!node._uniqueDisplayId) {
-                node._uniqueDisplayId = `${tabId}_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            }
-            console.log(`🔧 3D显示Tab感知ID: ${node.id} → ${node._uniqueDisplayId} (generated)`);
-            return node._uniqueDisplayId;
         }
+        
+        // 优先级2: 节点的内部ID
+        if (node._id) {
+            const tabAwareId = `${tabId}_${node._id}`;
+            console.log(`🔧 节点ID生成: ${node.id} → ${tabAwareId} (node._id)`);
+            return tabAwareId;
+        }
+        
+        // 优先级3: 基于节点的稳定属性生成确定性ID
+        const stableNodeId = this._generateStableNodeId(node);
+        const tabAwareId = `${tabId}_${stableNodeId}`;
+        console.log(`🔧 节点ID生成: ${node.id} → ${tabAwareId} (stable)`);
+        return tabAwareId;
     }
     
-    // 🆕 获取当前tab的唯一标识
+    // 🎯 生成稳定的节点ID（基于节点的不变属性）
+    _generateStableNodeId(node) {
+        // 收集节点的稳定属性
+        const stableProps = {
+            // 基础属性
+            id: node.id,                    // 节点在当前图中的ID
+            type: node.type,                // 节点类型
+            title: node.title || node.type, // 节点标题
+            
+            // 位置信息（相对稳定）
+            pos: node.pos ? `${Math.round(node.pos[0])}_${Math.round(node.pos[1])}` : 'pos_unknown',
+            
+            // 大小信息
+            size: node.size ? `${node.size[0]}x${node.size[1]}` : 'size_default',
+            
+            // 输入输出结构（这些是最稳定的）
+            inputs_count: node.inputs ? node.inputs.length : 0,
+            outputs_count: node.outputs ? node.outputs.length : 0
+        };
+        
+        // 如果有widgets，添加widgets的结构信息（不包含值，只包含结构）
+        if (node.widgets && node.widgets.length > 0) {
+            stableProps.widgets_structure = node.widgets.map(w => `${w.name}:${w.type}`).join('|');
+        }
+        
+        // 生成确定性hash
+        const propsString = JSON.stringify(stableProps);
+        const stableHash = this.hashString(propsString);
+        
+        // 使用节点ID作为主要标识，hash作为唯一化后缀
+        return `node_${node.id}_${stableHash}`;
+    }
+    
+    // 🎯 获取当前tab的唯一标识（基于Pinia store）
     getTabId(node) {
         try {
-            // 方法1: 通过graph对象获取tab信息
-            if (node.graph && node.graph.canvas && node.graph.canvas.canvas) {
-                const canvasId = node.graph.canvas.canvas.id || 'default';
-                return `tab_${canvasId}`;
-            }
-            
-            // 方法2: 通过app对象获取当前tab
-            if (window.app && window.app.graph && window.app.graph.canvas) {
-                const canvasElement = window.app.graph.canvas.canvas;
-                if (canvasElement && canvasElement.id) {
-                    return `tab_${canvasElement.id}`;
+            // 方法1: 通过Pinia workflowStore获取当前活跃工作流信息
+            if (window.app && window.app.$stores && window.app.$stores.workflow) {
+                try {
+                    const workflowStore = window.app.$stores.workflow;
+                    const activeWorkflow = workflowStore.activeWorkflow;
+                    if (activeWorkflow && activeWorkflow.key) {
+                        console.log(`🔧 从Pinia workflowStore获取tab标识: ${activeWorkflow.key}`);
+                        return `workflow_${this.hashString(activeWorkflow.key)}`;
+                    }
+                } catch (error) {
+                    console.warn('🔧 无法从Pinia workflowStore获取tab信息:', error);
                 }
             }
             
-            // 方法3: 通过DOM查找活跃tab
-            const activeTabButton = document.querySelector('.comfy-tab-button.active');
+            // 方法2: 通过ComfyUI的全局app对象
+            if (window.app && window.app.ui && window.app.ui.settings) {
+                try {
+                    // 尝试获取当前工作流名称
+                    const currentWorkflow = window.app.ui.settings.getSettingValue('Comfy.DevMode.EnableDebug');
+                    if (currentWorkflow) {
+                        console.log(`🔧 从app.ui获取工作流信息`);
+                    }
+                } catch (error) {
+                    console.warn('🔧 无法从app.ui获取工作流信息:', error);
+                }
+            }
+            
+            // 方法3: 通过DOM查找活跃tab的稳定名称
+            const activeTabButton = document.querySelector('.comfy-tab-button.active, .tab-button.active, [data-tab-active="true"]');
             if (activeTabButton) {
                 const tabText = activeTabButton.textContent.trim();
-                const tabHash = this.hashString(tabText);
-                return `tab_${tabHash}`;
+                console.log(`🔧 从DOM获取tab名: ${tabText}`);
+                return `workflow_${this.hashString(tabText)}`;
             }
             
-            // 方法4: 通过URL hash或其他方式
-            if (window.location.hash) {
-                const hashId = window.location.hash.replace('#', '');
-                return `tab_${hashId}`;
+            // 方法4: 通过window.title或document.title获取工作流名称
+            if (document.title && document.title !== 'ComfyUI') {
+                const titleParts = document.title.split(' - ');
+                if (titleParts.length > 1) {
+                    const workflowName = titleParts[0];
+                    console.log(`🔧 从document.title获取工作流名: ${workflowName}`);
+                    return `workflow_${this.hashString(workflowName)}`;
+                }
             }
             
-            // 方法5: 回退到graph内存地址的hash
-            if (node.graph) {
-                const graphHash = this.hashString(JSON.stringify({
-                    nodeCount: node.graph.nodes?.length || 0,
-                    timestamp: node.graph.runningTime || Date.now()
-                }));
-                return `tab_${graphHash}`;
+            // 方法5: 回退到graph对象信息（最不稳定）
+            if (node.graph && node.graph.canvas && node.graph.canvas.canvas) {
+                const canvasId = node.graph.canvas.canvas.id || 'default';
+                return `canvas_${canvasId}`;
             }
             
             // 最后回退
-            return 'tab_default';
+            console.warn('🔧 无法获取稳定的tab信息，使用默认值');
+            return 'workflow_default';
             
         } catch (error) {
             console.warn('🔧 获取tab ID失败，使用默认值:', error);
-            return 'tab_default';
+            return 'workflow_default';
         }
     }
     
