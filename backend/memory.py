@@ -15,6 +15,23 @@ import folder_paths
 # 设置日志
 logger = logging.getLogger(__name__)
 
+# 尝试导入WebSocket通知功能
+try:
+    from .websocket_server import notify_molecular_update, notify_molecular_edit, notify_molecular_delete
+    WEBSOCKET_NOTIFY_AVAILABLE = True
+    logger.info("✅ 内存管理器：WebSocket通知功能加载成功")
+except ImportError as e:
+    WEBSOCKET_NOTIFY_AVAILABLE = False
+    logger.warning(f"⚠️ 内存管理器：WebSocket通知功能不可用 - {e}")
+    
+    # 创建空的通知函数，避免代码报错
+    def notify_molecular_update(node_id, data):
+        pass
+    def notify_molecular_edit(node_id, data):
+        pass
+    def notify_molecular_delete(node_id):
+        pass
+
 # 全局分子数据缓存 - 简化版本
 MOLECULAR_DATA_CACHE: Dict[str, Dict[str, Any]] = {}
 
@@ -98,6 +115,15 @@ class MolecularDataManager:
                     logger.warning(f"⚠️ 文件系统保存失败: {e}")
                 
                 logger.info(f"✅ 分子数据存储成功: {filename} -> 节点 {node_id}")
+                
+                # 🚀 发送WebSocket通知
+                if WEBSOCKET_NOTIFY_AVAILABLE:
+                    try:
+                        notify_molecular_update(node_id, molecular_data)
+                        logger.debug(f"📡 已发送WebSocket更新通知: 节点 {node_id}")
+                    except Exception as e:
+                        logger.warning(f"⚠️ 发送WebSocket通知失败: {e}")
+                
                 return molecular_data
                 
             except Exception as e:
@@ -172,6 +198,80 @@ class MolecularDataManager:
             except Exception as e:
                 logger.exception(f"🚨 获取缓存状态时出错: {e}")
                 return {"error": str(e)}
+    
+    @classmethod
+    def edit_molecular_data(cls, node_id: str, edit_type: str, **kwargs) -> Optional[Dict[str, Any]]:
+        """
+        编辑分子数据（简单版本，用于概念验证）
+        
+        Args:
+            node_id: 节点ID
+            edit_type: 编辑类型（'remove_last_atom'）
+            **kwargs: 编辑参数
+            
+        Returns:
+            编辑后的数据字典，失败返回None
+        """
+        with CACHE_LOCK:
+            try:
+                # 🔧 调试：显示缓存中的所有节点ID
+                logger.info(f"🔍 尝试编辑节点: {node_id}")
+                logger.info(f"🔍 缓存中的节点ID列表: {list(MOLECULAR_DATA_CACHE.keys())}")
+                
+                if node_id not in MOLECULAR_DATA_CACHE:
+                    logger.warning(f"⚠️ 节点 {node_id} 的数据不存在，无法编辑")
+                    logger.warning(f"⚠️ 可用的节点ID: {list(MOLECULAR_DATA_CACHE.keys())}")
+                    return None
+                
+                molecular_data = MOLECULAR_DATA_CACHE[node_id]
+                original_content = molecular_data.get("content", "")
+                
+                if edit_type == "remove_last_atom":
+                    # 🧪 简单编辑：删除PDB中最后一个原子
+                    logger.info(f"🧪 开始编辑: {edit_type}, 原始内容长度: {len(original_content)}")
+                    edited_content = cls._remove_last_atom_from_pdb(original_content)
+                    logger.info(f"🧪 编辑完成: 新内容长度: {len(edited_content)}")
+                    
+                    if edited_content != original_content:
+                        # 更新数据
+                        molecular_data["content"] = edited_content
+                        molecular_data["atoms"] = cls._simple_atom_count(edited_content, molecular_data.get("format", ""))
+                        molecular_data["last_edited"] = time.time()
+                        molecular_data["edit_history"] = molecular_data.get("edit_history", [])
+                        molecular_data["edit_history"].append({
+                            "type": edit_type,
+                            "timestamp": time.time(),
+                            "description": "删除最后一个原子"
+                        })
+                        
+                        logger.info(f"🧪 编辑成功: 节点 {node_id} 删除最后一个原子")
+                        
+                        # 🚀 发送WebSocket编辑通知
+                        if WEBSOCKET_NOTIFY_AVAILABLE:
+                            try:
+                                edit_info = {
+                                    "edit_type": edit_type,
+                                    "description": "删除最后一个原子",
+                                    "atoms_count": molecular_data["atoms"],
+                                    "timestamp": time.time()
+                                }
+                                notify_molecular_edit(node_id, edit_info)
+                                logger.debug(f"📡 已发送WebSocket编辑通知: 节点 {node_id}")
+                            except Exception as e:
+                                logger.warning(f"⚠️ 发送WebSocket编辑通知失败: {e}")
+                        
+                        return molecular_data
+                    else:
+                        logger.warning(f"⚠️ 编辑无效果: 节点 {node_id}")
+                        return None
+                        
+                else:
+                    logger.warning(f"⚠️ 不支持的编辑类型: {edit_type}")
+                    return None
+                    
+            except Exception as e:
+                logger.exception(f"🚨 编辑分子数据时出错: {e}")
+                return None
     
     @classmethod
     def clear_cache(cls, node_id: str = None) -> bool:
@@ -268,6 +368,53 @@ class MolecularDataManager:
         except Exception as e:
             logger.warning(f"⚠️ 文件系统保存失败: {e}")
             raise
+    
+    @staticmethod
+    def _remove_last_atom_from_pdb(content: str) -> str:
+        """
+        从PDB内容中删除最后一个原子（简单编辑功能）
+        
+        Args:
+            content: PDB文件内容
+            
+        Returns:
+            编辑后的PDB内容
+        """
+        try:
+            lines = content.split('\n')
+            logger.info(f"🧪 解析PDB: 总行数 {len(lines)}")
+            
+            # 找到所有原子行的索引
+            atom_line_indices = []
+            for i, line in enumerate(lines):
+                if line.startswith('ATOM') or line.startswith('HETATM'):
+                    atom_line_indices.append(i)
+            
+            logger.info(f"🧪 找到 {len(atom_line_indices)} 个原子行")
+            
+            if not atom_line_indices:
+                logger.warning(f"⚠️ 没有找到ATOM或HETATM行，无法删除原子")
+                return content
+            
+            # 删除最后一个原子行
+            last_atom_index = atom_line_indices[-1]
+            removed_line = lines[last_atom_index]
+            logger.info(f"🧪 删除第 {last_atom_index+1} 行原子: {removed_line[:50]}...")
+            
+            # 创建新的行列表，跳过最后一个原子行
+            result_lines = []
+            for i, line in enumerate(lines):
+                if i != last_atom_index:
+                    result_lines.append(line)
+            
+            result_content = '\n'.join(result_lines)
+            logger.info(f"🧪 编辑完成: {len(lines)} → {len(result_lines)} 行")
+            
+            return result_content
+            
+        except Exception as e:
+            logger.error(f"🚨 删除原子失败: {e}")
+            return content  # 返回原始内容
 
 
 # ====================================================================================================
@@ -289,3 +436,7 @@ def get_cache_status():
 def clear_cache(node_id: str = None):
     """便捷函数 - 清除缓存"""
     return MolecularDataManager.clear_cache(node_id)
+
+def edit_molecular_data(node_id: str, edit_type: str, **kwargs):
+    """便捷函数 - 编辑分子数据"""
+    return MolecularDataManager.edit_molecular_data(node_id, edit_type, **kwargs)

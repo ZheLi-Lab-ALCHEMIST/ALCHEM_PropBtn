@@ -20,13 +20,23 @@ try:
         get_molecular_data, 
         store_molecular_data,
         get_cache_status, 
-        clear_cache
+        clear_cache,
+        edit_molecular_data
     )
     MEMORY_AVAILABLE = True
     logger.info("✅ API模块：内存管理器加载成功")
 except ImportError as e:
     MEMORY_AVAILABLE = False
     logger.error(f"🚨 API模块：内存管理器加载失败 - {e}")
+
+# 导入WebSocket服务器
+try:
+    from .websocket_server import register_websocket_routes, get_websocket_manager
+    WEBSOCKET_AVAILABLE = True
+    logger.info("✅ API模块：WebSocket服务器加载成功")
+except ImportError as e:
+    WEBSOCKET_AVAILABLE = False
+    logger.error(f"🚨 API模块：WebSocket服务器加载失败 - {e}")
 
 
 def register_api_routes():
@@ -62,6 +72,10 @@ def register_api_routes():
                 response = await _handle_get_cache_status()
             elif request_type == "clear_cache":
                 response = await _handle_clear_cache(node_id)  # 保留用于调试
+            elif request_type == "edit_molecular_data":
+                # 🧪 新增：分子数据编辑
+                edit_type = json_data.get("edit_type")
+                response = await _handle_edit_molecular_data(node_id, edit_type)
             else:
                 response = {
                     "success": False,
@@ -181,9 +195,20 @@ def register_api_routes():
         try:
             status_info = {
                 "api_available": MEMORY_AVAILABLE,
+                "websocket_available": WEBSOCKET_AVAILABLE,
                 "timestamp": time.time(),
-                "version": "2.0.0-simplified"  # 反映简化架构版本
+                "version": "2.0.0-websocket"  # 反映WebSocket版本
             }
+            
+            # 添加WebSocket状态信息
+            if WEBSOCKET_AVAILABLE:
+                try:
+                    ws_manager = get_websocket_manager()
+                    status_info["websocket"] = ws_manager.get_connection_info()
+                except Exception as e:
+                    status_info["websocket"] = {"error": f"获取WebSocket状态失败: {str(e)}"}
+            else:
+                status_info["websocket"] = {"error": "WebSocket不可用"}
             
             # 获取缓存状态
             if MEMORY_AVAILABLE:
@@ -210,10 +235,22 @@ def register_api_routes():
                 status=500
             )
     
+    # 🚀 注册WebSocket路由
+    if WEBSOCKET_AVAILABLE:
+        try:
+            register_websocket_routes()
+            logger.info("✅ WebSocket路由注册成功")
+        except Exception as e:
+            logger.error(f"❌ WebSocket路由注册失败: {e}")
+    else:
+        logger.warning("⚠️ WebSocket不可用，跳过路由注册")
+    
     logger.info("🚀 ALCHEM_PropBtn 简化API路由注册完成")
     logger.info("   - POST /alchem_propbtn/api/molecular (分子数据操作)")
     logger.info("   - POST /alchem_propbtn/api/upload_molecular (文件上传)")  
     logger.info("   - GET /alchem_propbtn/api/status (系统状态)")
+    if WEBSOCKET_AVAILABLE:
+        logger.info("   - GET /alchem_propbtn/ws (WebSocket实时同步)")
 
 
 # ====================================================================================================
@@ -284,6 +321,39 @@ async def _handle_clear_cache(node_id: str = None) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"🚨 清除缓存出错: {e}")
         return {"success": False, "error": f"清除缓存出错: {str(e)}"}
+
+
+async def _handle_edit_molecular_data(node_id: str, edit_type: str) -> Dict[str, Any]:
+    """编辑分子数据"""
+    if not node_id:
+        return {"success": False, "error": "节点ID不能为空"}
+    
+    if not edit_type:
+        return {"success": False, "error": "编辑类型不能为空"}
+    
+    try:
+        edited_data = edit_molecular_data(node_id, edit_type)
+        
+        if edited_data:
+            logger.info(f"🧪 编辑成功: 节点 {node_id}, 类型 {edit_type}")
+            return {
+                "success": True, 
+                "data": {
+                    "node_id": node_id,
+                    "edit_type": edit_type,
+                    "atoms_count": edited_data.get("atoms", 0),
+                    "last_edited": edited_data.get("last_edited"),
+                    "edit_history": edited_data.get("edit_history", [])
+                },
+                "message": f"成功执行编辑: {edit_type}"
+            }
+        else:
+            logger.warning(f"⚠️ 编辑失败: 节点 {node_id}, 类型 {edit_type}")
+            return {"success": False, "error": f"编辑失败或无变化"}
+            
+    except Exception as e:
+        logger.error(f"🚨 编辑分子数据失败: {e}")
+        return {"success": False, "error": f"编辑分子数据失败: {str(e)}"}
 
 
 # ====================================================================================================

@@ -290,6 +290,143 @@ window.debugMultiTabMemory = () => {
     console.log("4. 检查是否能正常显示tab_A的分子");
 };
 
+// 🧪 内存和节点ID调试工具
+window.debugNodeIds = () => {
+    console.log("🧪 节点ID和内存调试工具");
+    console.log("========================");
+    
+    if (window.app && window.app.graph && window.app.graph.nodes) {
+        console.log(`当前图中有 ${window.app.graph.nodes.length} 个节点:`);
+        window.app.graph.nodes.forEach(node => {
+            console.log(`  节点 ${node.id} (${node.type}):`);
+            console.log(`    - node._id: ${node._id || '未设置'}`);
+            console.log(`    - node._uniqueDisplayId: ${node._uniqueDisplayId || '未设置'}`);
+            
+            if (node.widgets && node.widgets.some(w => w.name && w.name.includes('molecular'))) {
+                console.log(`    - 包含分子功能: ✅`);
+            }
+        });
+    }
+    
+    // 检查后端内存状态
+    fetch('/alchem_propbtn/api/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.data.cache) {
+                const cache = data.data.cache;
+                console.log(`\n后端内存状态:`);
+                console.log(`  总节点数: ${cache.total_nodes || 0}`);
+                if (cache.nodes && cache.nodes.length > 0) {
+                    console.log(`  内存中的节点ID列表:`);
+                    cache.nodes.forEach(node => {
+                        console.log(`    - ${node.node_id}: ${node.filename} (${node.atoms} 原子)`);
+                    });
+                }
+            }
+        })
+        .catch(e => console.error('获取后端状态失败:', e));
+};
+
+// 🚀 WebSocket调试工具
+window.debugWebSocket = () => {
+    console.log("🚀 WebSocket实时同步调试工具");
+    console.log("============================");
+    
+    // 检查WebSocket客户端状态
+    if (window.webSocketClient) {
+        const status = window.webSocketClient.getStatus();
+        console.log("WebSocket客户端状态:");
+        console.log(`  连接状态: ${status.isConnected ? '✅ 已连接' : '❌ 未连接'}`);
+        console.log(`  订阅节点: ${status.subscribedNodes.length} 个`);
+        console.log(`  重连尝试: ${status.reconnectAttempts} 次`);
+        
+        if (status.subscribedNodes.length > 0) {
+            console.log("  订阅列表:");
+            status.subscribedNodes.forEach(nodeId => {
+                console.log(`    - ${nodeId}`);
+            });
+        }
+    } else {
+        console.warn("⚠️ WebSocket客户端未找到");
+    }
+    
+    // 检查后端WebSocket状态
+    fetch('/alchem_propbtn/api/status')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.data.websocket) {
+                const ws = data.data.websocket;
+                console.log("\n后端WebSocket状态:");
+                console.log(`  服务可用: ${data.data.websocket_available ? '✅ 是' : '❌ 否'}`);
+                console.log(`  当前连接: ${ws.total_connections || 0} 个`);
+                if (ws.clients && ws.clients.length > 0) {
+                    console.log("  客户端列表:");
+                    ws.clients.forEach((client, i) => {
+                        console.log(`    ${i+1}. 连接时长: ${Math.floor(client.uptime || 0)}秒`);
+                    });
+                }
+            }
+        })
+        .catch(e => console.error('获取WebSocket状态失败:', e));
+    
+    console.log("\n测试实时同步:");
+    console.log("1. 上传一个PDB分子文件");
+    console.log("2. 点击'🧪 显示3D结构'按钮");
+    console.log("3. 点击'🔧 删除最后原子'按钮");
+    console.log("4. 观察Molstar显示是否自动更新");
+    console.log("\n调试命令:");
+    console.log("debugNodeIds() - 查看节点ID和内存状态");
+    console.log("webSocketClient.connect() - 手动连接WebSocket");
+    console.log("testNodeIdConsistency() - 测试节点ID一致性");
+};
+
+// 🧪 测试节点ID一致性
+window.testNodeIdConsistency = () => {
+    console.log("🧪 测试节点ID生成一致性");
+    console.log("========================");
+    
+    if (window.app && window.app.graph && window.app.graph.nodes) {
+        const molecularNodes = window.app.graph.nodes.filter(node => 
+            node.widgets && node.widgets.some(w => w.name && w.name.includes('molecular'))
+        );
+        
+        if (molecularNodes.length === 0) {
+            console.warn("⚠️ 没有找到包含分子功能的节点");
+            return;
+        }
+        
+        molecularNodes.forEach(node => {
+            console.log(`\n节点 ${node.id} (${node.type}):`);
+            
+            // 模拟上传模块的ID生成
+            try {
+                // 这里需要手动复制上传模块的逻辑
+                let uploadId = "模拟上传ID";
+                console.log(`  上传模块ID: ${uploadId}`);
+            } catch (e) {
+                console.warn(`  上传模块ID生成失败: ${e.message}`);
+            }
+            
+            // 模拟显示模块的ID生成
+            try {
+                // 这里需要手动复制显示模块的逻辑
+                let displayId = "模拟显示ID";
+                console.log(`  显示模块ID: ${displayId}`);
+            } catch (e) {
+                console.warn(`  显示模块ID生成失败: ${e.message}`);
+            }
+        });
+    }
+};
+
+// 导出WebSocket客户端到全局作用域（用于调试）
+if (typeof window !== 'undefined') {
+    // 这里会在模块加载后通过动态导入设置
+    import('./modules/websocket-client.js').then(module => {
+        window.webSocketClient = module.webSocketClient;
+    }).catch(e => console.warn('WebSocket客户端导入失败:', e));
+}
+
 // 全局QUIET日志函数 - 供所有模块使用
 window.QUIET_LOG = (message) => {
     if (EXTENSION_CONFIG.settings.logLevel === 'debug') {

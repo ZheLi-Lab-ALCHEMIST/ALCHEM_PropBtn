@@ -648,13 +648,29 @@ const findNodeByWidget = (widget) => {
     return null;
 };
 
-// 🆕 生成tab感知的节点ID（修复多tab bug）
+// 🆕 生成tab感知的节点ID（修复多tab bug）- 与data-processor.js保持一致
 const generateTabAwareNodeId = (node) => {
     try {
         const tabId = getTabId(node);
-        const tabAwareId = `${tabId}_${node.id}`;
-        logger.info(`🔧 Tab感知ID生成: 原始ID=${node.id} → Tab感知ID=${tabAwareId}`, 'molecularUpload');
-        return tabAwareId;
+        
+        // 与data-processor.js的逻辑保持完全一致
+        if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
+            const baseId = node.graph.runningContext.unique_id;
+            const tabAwareId = `${tabId}_${baseId}`;
+            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${tabAwareId} (runningContext)`, 'molecularUpload');
+            return tabAwareId;
+        } else if (node._id) {
+            const tabAwareId = `${tabId}_${node._id}`;
+            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${tabAwareId} (node._id)`, 'molecularUpload');
+            return tabAwareId;
+        } else {
+            // 使用节点的内存地址或其他唯一标识
+            if (!node._uniqueDisplayId) {
+                node._uniqueDisplayId = `${tabId}_${node.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            }
+            logger.info(`🔧 上传Tab感知ID: ${node.id} → ${node._uniqueDisplayId} (generated)`, 'molecularUpload');
+            return node._uniqueDisplayId;
+        }
     } catch (error) {
         logger.warn('🔧 生成tab感知ID失败，使用默认:', error);
         return `default_${node.id}`;

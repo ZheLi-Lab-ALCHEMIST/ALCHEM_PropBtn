@@ -12,6 +12,8 @@ import { applyStyles, ALCHEM3DPanelManager, ResizeController } from './modules/u
 // DisplayUtils已删除 - 简化为直接显示分子数据
 import { MolecularDataProcessor } from './modules/data-processor.js';
 import { APIClient, apiClient } from './modules/api-client.js';
+// 🚀 导入WebSocket客户端
+import { webSocketClient } from './modules/websocket-client.js';
 
 /**
  * 主协调器类 - 管理所有模块的交互
@@ -22,6 +24,10 @@ class ALCHEM3DDisplayCoordinator {
         this.dataProcessor = null;
         this.displayUtils = null;
         this.isInitialized = false;
+        
+        // 🚀 WebSocket相关
+        this.webSocketConnected = false;
+        this.subscribedNodes = new Set();
     }
     
     // 初始化所有模块
@@ -40,6 +46,9 @@ class ALCHEM3DDisplayCoordinator {
         
         // 初始化面板管理器
         await this.panelManager.initialize();
+        
+        // 🚀 初始化WebSocket连接
+        await this.initializeWebSocket();
         
         this.isInitialized = true;
         window.QUIET_LOG && window.QUIET_LOG("✅ ALCHEM 3D Display Coordinator initialized");
@@ -62,8 +71,100 @@ class ALCHEM3DDisplayCoordinator {
         return apiClient;
     }
     
+    // 🚀 初始化WebSocket连接
+    async initializeWebSocket() {
+        try {
+            // 设置事件监听器
+            webSocketClient.on('connected', () => {
+                this.webSocketConnected = true;
+                console.log("🚀 3D显示模块：WebSocket连接成功");
+                
+                // 重新订阅所有节点
+                for (const nodeId of this.subscribedNodes) {
+                    webSocketClient.subscribeNode(nodeId);
+                }
+            });
+            
+            webSocketClient.on('disconnected', () => {
+                this.webSocketConnected = false;
+                console.warn("⚠️ 3D显示模块：WebSocket连接断开");
+            });
+            
+            // 🔥 关键：监听分子数据变更
+            webSocketClient.on('molecular_data_changed', (message) => {
+                this.handleMolecularDataChange(message);
+            });
+            
+            // 连接到WebSocket服务器
+            await webSocketClient.connect();
+            
+        } catch (error) {
+            console.error("❌ WebSocket初始化失败:", error);
+        }
+    }
+    
+    // 🔥 处理分子数据变更（自动刷新Molstar）
+    async handleMolecularDataChange(message) {
+        const { node_id, change_type, data, timestamp } = message;
+        
+        console.log(`🧪 收到分子数据变更: 节点 ${node_id}, 类型 ${change_type}`);
+        
+        try {
+            // 如果当前面板正在显示该节点的数据，则自动刷新
+            if (this.panelManager && this.panelManager.isVisible) {
+                console.log("🔄 自动刷新Molstar显示...");
+                
+                // 获取最新的分子数据
+                const backendData = await this.dataProcessor.fetchMolecularDataFromBackend(node_id);
+                
+                if (backendData && backendData.success) {
+                    const molecularData = backendData.data;
+                    
+                    // 直接更新Molstar显示
+                    if (molecularData.content) {
+                        this.panelManager.displayData(molecularData.content);
+                        console.log(`✅ Molstar已更新: ${molecularData.filename} (${molecularData.atoms} 原子)`);
+                    }
+                } else {
+                    console.warn("⚠️ 获取最新分子数据失败");
+                }
+            }
+            
+        } catch (error) {
+            console.error("❌ 处理分子数据变更失败:", error);
+        }
+    }
+    
+    // 🚀 订阅节点的数据变更
+    subscribeNodeUpdates(nodeId) {
+        if (!nodeId) return;
+        
+        this.subscribedNodes.add(nodeId);
+        
+        if (this.webSocketConnected) {
+            webSocketClient.subscribeNode(nodeId);
+            console.log(`🔔 已订阅节点 ${nodeId} 的数据变更`);
+        } else {
+            console.log(`📝 节点 ${nodeId} 将在WebSocket连接后自动订阅`);
+        }
+    }
+    
+    // 取消订阅
+    unsubscribeNodeUpdates(nodeId) {
+        this.subscribedNodes.delete(nodeId);
+        
+        if (this.webSocketConnected) {
+            webSocketClient.unsubscribeNode(nodeId);
+        }
+    }
+    
     // 清理所有资源
     destroy() {
+        // 断开WebSocket连接
+        if (this.webSocketConnected) {
+            webSocketClient.disconnect();
+        }
+        
         if (this.panelManager) {
             this.panelManager.destroy();
         }
@@ -105,6 +206,9 @@ export const show3DMolecularView = async (node, inputName) => {
         
         // 生成唯一节点ID
         const nodeId = dataProcessor.generateUniqueNodeId(node);
+        
+        // 🚀 订阅该节点的WebSocket更新
+        alchem3DCoordinator.subscribeNodeUpdates(nodeId);
         
         // 显示面板
         panelManager.showPanel();
@@ -177,6 +281,47 @@ export const show3DMolecularView = async (node, inputName) => {
     }
 };
 
+// 🧪 执行分子数据编辑
+export const editMolecularData = async (node, inputName, editType) => {
+    try {
+        console.log(`🧪 开始编辑分子数据: 节点 ${node.id}, 类型 ${editType}`);
+        
+        // 生成tab感知的节点ID
+        const dataProcessor = alchem3DCoordinator.getDataProcessor();
+        const nodeId = dataProcessor.generateUniqueNodeId(node);
+        
+        // 调用后端编辑API
+        const response = await fetch('/alchem_propbtn/api/molecular', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                request_type: 'edit_molecular_data',
+                node_id: nodeId,
+                edit_type: editType
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log(`✅ 编辑成功: ${result.message}`);
+            console.log(`   原子数量: ${result.data.atoms_count}`);
+            
+            // WebSocket会自动推送更新，无需手动刷新
+            return result;
+        } else {
+            console.error(`❌ 编辑失败: ${result.error}`);
+            throw new Error(result.error);
+        }
+        
+    } catch (error) {
+        console.error('🚨 编辑分子数据失败:', error);
+        throw error;
+    }
+};
+
 // 创建3D显示Widget - 重构版本
 export const createMolstar3DDisplayWidget = () => {
     return (node, inputName, inputData) => {
@@ -195,13 +340,34 @@ export const createMolstar3DDisplayWidget = () => {
                 serialize: false
             }
         );
+        
+        // 🧪 创建简单编辑按钮
+        const editWidget = node.addWidget(
+            'button',
+            `${inputName}_edit`,
+            '🔧 删除最后原子',
+            async () => {
+                try {
+                    await editMolecularData(node, originalInputName, 'remove_last_atom');
+                } catch (error) {
+                    alert(`编辑失败: ${error.message}`);
+                }
+            },
+            { 
+                serialize: false
+            }
+        );
 
         // 自定义按钮样式
         displayWidget.computeSize = function() {
             return [200, 30];
         };
+        
+        editWidget.computeSize = function() {
+            return [200, 30];
+        };
 
-        // QUIET: console.log(`🎯 Added modular 3D display widget for ${originalInputName} on node ${node.type}`);
+        // QUIET: console.log(`🎯 Added modular 3D display and edit widgets for ${originalInputName} on node ${node.type}`);
         
         return { widget: displayWidget };
     };
