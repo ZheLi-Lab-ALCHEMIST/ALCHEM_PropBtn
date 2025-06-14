@@ -6,6 +6,9 @@ import { MolecularDataProcessor } from "./modules/data-processor.js";
 // 使用统一的ALCHEM日志系统
 const logger = getUploadLogger();
 
+// 创建模块级别的数据处理器实例（避免重复实例化）
+const dataProcessor = new MolecularDataProcessor();
+
 /**
  * 🧪 分子文件上传模块 (uploadMolecules.js)
  * 
@@ -477,7 +480,6 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             }
             
             // 🔧 直接使用稳定的节点ID生成机制
-            const dataProcessor = new MolecularDataProcessor();
             const tabAwareNodeId = dataProcessor.generateUniqueNodeId(node);
             console.log(`✅ 上传使用新的稳定ID算法: ${tabAwareNodeId}`);
             

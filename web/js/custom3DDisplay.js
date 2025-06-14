@@ -178,7 +178,6 @@ class ALCHEM3DDisplayCoordinator {
         // 简化版API客户端无需清理缓存
         
         this.isInitialized = false;
-        // QUIET: console.log("🧪 ALCHEM 3D Display Coordinator destroyed");
     }
 }
 
@@ -219,34 +218,27 @@ export const show3DMolecularView = async (node, inputName) => {
         let isFromBackend = false;
         
         try {
-            // QUIET: console.log(`🧪 Attempting to fetch from backend memory using nodeId: ${nodeId}...`);
             backendData = await dataProcessor.fetchMolecularDataFromBackend(nodeId);
             
             if (backendData && backendData.success) {
                 molecularData = backendData.data;
                 isFromBackend = true;
-                // QUIET: console.log(`🚀 Successfully fetched molecular data from backend memory`);
             } else {
-                // QUIET: console.log(`⚠️ No data for node ${nodeId}, trying filename-based lookup...`);
-                
                 // 备选方案：根据文件名查找数据
                 if (selectedFile && selectedFile !== 'benzene') {
                     const filenameData = await dataProcessor.findMolecularDataByFilename(selectedFile);
                     if (filenameData && filenameData.success) {
                         molecularData = filenameData.data;
                         isFromBackend = true;
-                        // QUIET: console.log(`✅ Retrieved data by filename: ${molecularData.filename}`);
                     }
                 }
             }
         } catch (error) {
-            // QUIET: console.warn(`🚨 Failed to fetch from backend memory:`, error);
         }
         
         // 步骤2：回退到前端内存（兼容性）
         if (!molecularData && node.molecularData && node.molecularData[inputName]) {
             molecularData = node.molecularData[inputName];
-            // QUIET: console.log(`🧪 Found molecular data in frontend node memory`);
         }
         
         // 简化：直接显示分子数据，删除复杂的HTML生成
@@ -270,7 +262,6 @@ export const show3DMolecularView = async (node, inputName) => {
         // 直接显示分子数据（无论MolStar是否可用）
         panelManager.displayData(molstarContent);
         
-        // QUIET: console.log(`🎯 3D Display completed for node ${nodeId}, input: ${inputName}, file: ${selectedFile}`);
         
     } catch (error) {
         console.error('🚨 Error in 3D display:', error);
@@ -368,7 +359,6 @@ export const createMolstar3DDisplayWidget = () => {
             return [200, 30];
         };
 
-        // QUIET: console.log(`🎯 Added modular 3D display and edit widgets for ${originalInputName} on node ${node.type}`);
         
         return { widget: displayWidget };
     };
@@ -378,7 +368,6 @@ export const createMolstar3DDisplayWidget = () => {
 export const init3DDisplay = async () => {
     try {
         await alchem3DCoordinator.initialize();
-        // QUIET: console.log("🧪 Modular 3D Display system initialized");
     } catch (error) {
         console.error("❌ Failed to initialize modular 3D Display system:", error);
     }
@@ -387,7 +376,6 @@ export const init3DDisplay = async () => {
 // 处理3D显示节点创建 - 重构版本
 export const handle3DDisplayNodeCreated = (node) => {
     if (node.type === 'Demo3DDisplayNode') {
-        // QUIET: console.log(`🎯 Enhanced ${node.type} with modular 3D display support`);
     }
 };
 
@@ -406,7 +394,6 @@ export const process3DDisplayNodes = (nodeType, nodeData) => {
 
     if (found3DDisplay) {
         const [inputName, inputSpec] = found3DDisplay;
-        // QUIET: console.log(`🎯 Added modular 3D display for ${nodeData.name}: ${inputName}`);
         return {
             inputName,
             inputSpec,
@@ -441,11 +428,3 @@ export {
     APIClient
 };
 
-// QUIET: console.log("🎉 ALCHEM 3D Display modular system loaded successfully!");
-// QUIET: console.log("📊 Refactoring stats:");
-// QUIET: console.log("   - Original: 1726 lines in 1 file");
-// QUIET: console.log("   - Refactored: ~400 lines across 7 modules");
-// QUIET: console.log("   - Reduction: ~77% code per module");
-// QUIET: console.log("   - Maintainability: +++");
-// QUIET: console.log("   - Performance: +++");
-// QUIET: console.log("   - Testability: +++");

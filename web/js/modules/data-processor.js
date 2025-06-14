@@ -21,7 +21,6 @@ export class MolecularDataProcessor {
     // 从后端API获取分子数据
     async fetchMolecularDataFromBackend(nodeId) {
         try {
-            // QUIET: console.log(`🚀 Fetching molecular data for node: ${nodeId}`);
             
             const apiUrl = '/alchem_propbtn/api/molecular';
             const response = await fetch(apiUrl, {
@@ -40,15 +39,8 @@ export class MolecularDataProcessor {
             }
             
             const responseData = await response.json();
-            // QUIET: console.log(`📡 Backend API response:`, responseData);
             
             if (responseData.success) {
-                // QUIET: console.log(`✅ Successfully retrieved molecular data from backend`);
-                // QUIET: console.log(`   - Node ID: ${responseData.data.node_id}`);
-                // QUIET: console.log(`   - Filename: ${responseData.data.filename}`);
-                // QUIET: console.log(`   - Format: ${responseData.data.format_name}`);
-                // QUIET: console.log(`   - Atoms: ${responseData.data.atoms}`);
-                // QUIET: console.log(`   - Access count: ${responseData.data.access_count}`);
             }
             
             return responseData;
@@ -81,7 +73,6 @@ export class MolecularDataProcessor {
             }
             
             const responseData = await response.json();
-            // QUIET: console.log(`📊 Cache status:`, responseData);
             
             return responseData;
             
@@ -98,25 +89,20 @@ export class MolecularDataProcessor {
     // 通过文件名查找分子数据
     async findMolecularDataByFilename(filename) {
         try {
-            // QUIET: console.log(`🔍 Searching for molecular data by filename: ${filename}`);
             
             const cacheStatus = await this.fetchCacheStatusFromBackend();
             if (cacheStatus && cacheStatus.success && cacheStatus.data.nodes) {
                 for (const cachedNode of cacheStatus.data.nodes) {
                     if (cachedNode.filename === filename) {
-                        // QUIET: console.log(`🎯 Found matching file in cache: ${filename} (node: ${cachedNode.node_id})`);
-                        
                         // 使用找到的节点ID获取完整数据
                         const backendData = await this.fetchMolecularDataFromBackend(cachedNode.node_id);
                         if (backendData && backendData.success) {
-                            // QUIET: console.log(`✅ Retrieved data by filename: ${backendData.data.filename}`);
                             return backendData;
                         }
                     }
                 }
             }
             
-            // QUIET: console.log(`❌ No data found for filename: ${filename}`);
             return null;
             
         } catch (error) {
@@ -129,7 +115,6 @@ export class MolecularDataProcessor {
     async readMolecularFileContent(filename) {
         try {
             const fileUrl = `/view?filename=${encodeURIComponent(filename)}&type=input`;
-            // QUIET: console.log(`🧪 Attempting to read molecular file: ${fileUrl}`);
             
             const response = await fetch(fileUrl);
             if (!response.ok) {
@@ -137,7 +122,6 @@ export class MolecularDataProcessor {
             }
             
             const content = await response.text();
-            // QUIET: console.log(`🧪 Successfully read ${content.length} characters from ${filename}`);
             
             return content;
         } catch (error) {
@@ -200,7 +184,6 @@ export class MolecularDataProcessor {
                     analysis.title = filename;
             }
         } catch (error) {
-            // QUIET: console.warn('🧪 Error analyzing molecular content:', error);
         }
         
         return analysis;
@@ -244,7 +227,6 @@ export class MolecularDataProcessor {
             };
             
         } catch (error) {
-            // QUIET: console.warn("🧪 解析分子信息失败:", error);
             return null;
         }
     }
@@ -409,7 +391,6 @@ export class MolecularDataProcessor {
     // 清理缓存
     clearCache() {
         this.cache.clear();
-        // QUIET: console.log("🧪 Data processor cache cleared");
     }
     
     // 获取缓存统计

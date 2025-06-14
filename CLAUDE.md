@@ -51,7 +51,7 @@ ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件�
 - `web/js/modules/websocket-client.js` - WebSocket客户端
 
 ### Deprecated Files
-- `nodes/nodes.py` - 废弃的旧节点（已被方案B替代）
+- ~~`nodes/nodes.py`~~ - 已删除（方案A旧节点已被方案B替代）
 
 ## Development Commands
 
@@ -173,9 +173,8 @@ logger.ui("界面操作");
 - ⚡ WEBSOCKET - WebSocket通信
 
 ## Important Notes
-- **避免修改废弃文件**: `nodes/nodes.py` 已废弃，不要编辑
+- **架构一致性**: 新功能应遵循方案B的属性驱动模式
 - **重启要求**: 修改Python节点后需要重启ComfyUI
 - **前端调试**: 使用浏览器控制台查看扩展状态和日志
-- **架构一致性**: 新功能应遵循方案B的属性驱动模式
 - **日志规范**: 必须使用统一的ALCHEM日志系统，禁止直接使用console.log或logging.getLogger()
 - **WebSocket测试**: 使用debugWebSocket()和debugNodeIds()进行实时同步调试
