@@ -20,22 +20,27 @@
 - 两套算法并存导致上传和编辑使用不同ID，功能失效
 
 ### 清理任务
-- [ ] **删除重复函数** - uploadMolecules.js 第634-720行
+- [x] **删除重复函数** - uploadMolecules.js 第634-720行 ✅
   ```javascript
-  // 需删除的函数：
+  // 已删除的函数：
   - generateTabAwareNodeId()  // line 634-660
   - getTabId()               // line 663-709  
   - hashString()             // line 712-720
   ```
 
-- [ ] **统一ID生成调用** - 所有组件使用MolecularDataProcessor
+- [x] **统一ID生成调用** - 所有组件使用MolecularDataProcessor ✅
   ```javascript
   // 标准调用方式：
   const dataProcessor = new MolecularDataProcessor();
   const nodeId = dataProcessor.generateUniqueNodeId(node);
   ```
 
-- [ ] **验证功能完整性** - 确保上传、3D显示、编辑功能正常
+- [x] **验证功能完整性** - 确保上传、3D显示、编辑功能正常 ✅
+
+### 💡 **额外发现和修复** - Logging系统统一化
+- [x] **修复molecular_utils.py** - 替换旧的logging.getLogger()为统一ALCHEM系统
+- [x] **修复__init__.py** - 统一使用ALCHEM日志，删除print()调用
+- [x] **验证项目logging一致性** - 达到100%统一率
 
 ### 影响文件清单
 - `web/js/uploadMolecules.js` - 删除重复逻辑

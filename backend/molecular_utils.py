@@ -12,12 +12,14 @@
 """
 
 import os
-import logging
 import hashlib
 import time
 from typing import Optional, Dict, Any, Tuple
 
-logger = logging.getLogger(__name__)
+# 使用统一的ALCHEM日志系统
+from .logging_config import get_alchem_logger
+
+logger = get_alchem_logger('MolecularUtils')
 
 def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallback_to_file: bool = True) -> Tuple[str, Dict[str, Any]]:
     """
