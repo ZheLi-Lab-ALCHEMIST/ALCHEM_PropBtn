@@ -63,6 +63,25 @@ class SimpleUploadAndDisplayTestNode:
         展示方案B的标准用法：节点主动获取分子数据
         """
         try:
+            # 🔑 关键：如果是upload节点，先同步tab_id到CACHE
+            if _alchem_node_id and "_node_" in _alchem_node_id:
+                try:
+                    from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+                    
+                    tab_id = _alchem_node_id.split("_node_")[0]
+                    print(f"🔑 upload节点执行时同步tab_id: {tab_id} -> {_alchem_node_id}")
+                    
+                    # 如果节点数据已存在，确保tab_id字段正确
+                    with CACHE_LOCK:
+                        if _alchem_node_id in MOLECULAR_DATA_CACHE:
+                            MOLECULAR_DATA_CACHE[_alchem_node_id]["tab_id"] = tab_id
+                            print(f"✅ 同步tab_id到CACHE成功: {_alchem_node_id} -> {tab_id}")
+                        else:
+                            print(f"⚠️ 节点数据尚不存在，无需同步: {_alchem_node_id}")
+                            
+                except Exception as sync_error:
+                    print(f"⚠️ tab_id同步失败，但不影响执行: {sync_error}")
+            
             # 🎯 使用新的工具函数获取分子数据
             from ..backend.molecular_utils import get_molecular_content
             

@@ -30,6 +30,24 @@ try:
 except ImportError as e:
     logger.warning(f"标准节点模板导入失败: {e}")
 
+# 导入Tab感知处理节点
+try:
+    from .nodes.test_tab_aware_processing import NODE_CLASS_MAPPINGS as TAB_AWARE_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as TAB_AWARE_DISPLAY_MAPPINGS
+    NODE_CLASS_MAPPINGS.update(TAB_AWARE_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(TAB_AWARE_DISPLAY_MAPPINGS)
+    logger.success("Tab感知处理节点加载成功")
+except ImportError as e:
+    logger.warning(f"Tab感知处理节点导入失败: {e}")
+
+# 导入简化处理节点
+try:
+    from .nodes.simple_process_node import NODE_CLASS_MAPPINGS as SIMPLE_PROCESS_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as SIMPLE_PROCESS_DISPLAY_MAPPINGS
+    NODE_CLASS_MAPPINGS.update(SIMPLE_PROCESS_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(SIMPLE_PROCESS_DISPLAY_MAPPINGS)
+    logger.success("简化处理节点加载成功")
+except ImportError as e:
+    logger.warning(f"简化处理节点导入失败: {e}")
+
 logger.molecular(f"总共加载了 {len(NODE_CLASS_MAPPINGS)} 个节点")
 
 # ====================================================================================================

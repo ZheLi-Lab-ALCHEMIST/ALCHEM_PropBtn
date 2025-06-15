@@ -231,33 +231,16 @@ export class MolecularDataProcessor {
         }
     }
     
-    // 生成唯一节点ID (支持多tab)
+    // 生成唯一节点ID (支持多tab) - 简化版本
     generateUniqueNodeId(node) {
-        // 🔧 关键修复：生成tab感知的唯一ID
+        // 🔧 关键修复：生成tab感知的唯一ID，去掉复杂的hash机制
         const tabId = this.getTabId(node);
         
-        // 🎯 改进的节点ID生成策略：使用稳定的节点标识符
-        
-        // 优先级1: ComfyUI的运行时唯一标识符（最稳定）
-        if (node.graph && node.graph.runningContext && node.graph.runningContext.unique_id) {
-            const baseId = node.graph.runningContext.unique_id;
-            const tabAwareId = `${tabId}_${baseId}`;
-            console.log(`🔧 节点ID生成: ${node.id} → ${tabAwareId} (runningContext)`);
-            return tabAwareId;
-        }
-        
-        // 优先级2: 节点的内部ID
-        if (node._id) {
-            const tabAwareId = `${tabId}_${node._id}`;
-            console.log(`🔧 节点ID生成: ${node.id} → ${tabAwareId} (node._id)`);
-            return tabAwareId;
-        }
-        
-        // 优先级3: 基于节点的稳定属性生成确定性ID
-        const stableNodeId = this._generateStableNodeId(node);
-        const tabAwareId = `${tabId}_${stableNodeId}`;
-        console.log(`🔧 节点ID生成: ${node.id} → ${tabAwareId} (stable)`);
-        return tabAwareId;
+        // 🎯 简化的节点ID生成策略：直接使用tab_id + node_id
+        // 格式: workflow_fl40l5_node_23 (去掉hash后缀)
+        const simpleNodeId = `${tabId}_node_${node.id}`;
+        console.log(`🔧 节点ID生成: ${node.id} → ${simpleNodeId} (simplified)`);
+        return simpleNodeId;
     }
     
     // 🎯 生成稳定的节点ID（基于节点的不变属性）
@@ -293,7 +276,7 @@ export class MolecularDataProcessor {
         return `node_${node.id}_${stableHash}`;
     }
     
-    // 🎯 获取当前tab的唯一标识（基于Pinia store）
+    // 🎯 获取当前tab的唯一标识（简化版本）
     getTabId(node) {
         try {
             // 方法1: 通过Pinia workflowStore获取当前活跃工作流信息
@@ -303,51 +286,33 @@ export class MolecularDataProcessor {
                     const activeWorkflow = workflowStore.activeWorkflow;
                     if (activeWorkflow && activeWorkflow.key) {
                         console.log(`🔧 从Pinia workflowStore获取tab标识: ${activeWorkflow.key}`);
-                        return `workflow_${this.hashString(activeWorkflow.key)}`;
+                        // 简化：直接使用简短的hash
+                        return `workflow_${this.simpleHash(activeWorkflow.key)}`;
                     }
                 } catch (error) {
                     console.warn('🔧 无法从Pinia workflowStore获取tab信息:', error);
                 }
             }
             
-            // 方法2: 通过ComfyUI的全局app对象
-            if (window.app && window.app.ui && window.app.ui.settings) {
-                try {
-                    // 尝试获取当前工作流名称
-                    const currentWorkflow = window.app.ui.settings.getSettingValue('Comfy.DevMode.EnableDebug');
-                    if (currentWorkflow) {
-                        console.log(`🔧 从app.ui获取工作流信息`);
-                    }
-                } catch (error) {
-                    console.warn('🔧 无法从app.ui获取工作流信息:', error);
-                }
-            }
-            
-            // 方法3: 通过DOM查找活跃tab的稳定名称
+            // 方法2: 通过DOM查找活跃tab的稳定名称
             const activeTabButton = document.querySelector('.comfy-tab-button.active, .tab-button.active, [data-tab-active="true"]');
             if (activeTabButton) {
                 const tabText = activeTabButton.textContent.trim();
                 console.log(`🔧 从DOM获取tab名: ${tabText}`);
-                return `workflow_${this.hashString(tabText)}`;
+                return `workflow_${this.simpleHash(tabText)}`;
             }
             
-            // 方法4: 通过window.title或document.title获取工作流名称
+            // 方法3: 通过document.title获取工作流名称
             if (document.title && document.title !== 'ComfyUI') {
                 const titleParts = document.title.split(' - ');
                 if (titleParts.length > 1) {
                     const workflowName = titleParts[0];
                     console.log(`🔧 从document.title获取工作流名: ${workflowName}`);
-                    return `workflow_${this.hashString(workflowName)}`;
+                    return `workflow_${this.simpleHash(workflowName)}`;
                 }
             }
             
-            // 方法5: 回退到graph对象信息（最不稳定）
-            if (node.graph && node.graph.canvas && node.graph.canvas.canvas) {
-                const canvasId = node.graph.canvas.canvas.id || 'default';
-                return `canvas_${canvasId}`;
-            }
-            
-            // 最后回退
+            // 最后回退 - 使用简化的默认值
             console.warn('🔧 无法获取稳定的tab信息，使用默认值');
             return 'workflow_default';
             
@@ -357,15 +322,20 @@ export class MolecularDataProcessor {
         }
     }
     
-    // 🆕 简单字符串hash函数
-    hashString(str) {
+    // 🆕 简化的hash函数 - 生成5位短hash
+    simpleHash(str) {
         let hash = 0;
         for (let i = 0; i < str.length; i++) {
             const char = str.charCodeAt(i);
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash; // 转换为32位整数
         }
-        return Math.abs(hash).toString(36).substr(0, 8);
+        return Math.abs(hash).toString(36).substr(0, 5);
+    }
+    
+    // 🆕 保留原hash函数以兼容
+    hashString(str) {
+        return this.simpleHash(str);
     }
     
     // 检查是否是3D显示输入

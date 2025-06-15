@@ -83,6 +83,12 @@ class MolecularDataManager:
                 # 检测基本格式信息
                 file_format = cls._detect_format(filename)
                 
+                # 🔑 提取tab_id（关键新增）
+                tab_id = None
+                if "_node_" in node_id:
+                    tab_id = node_id.split("_node_")[0]  # 例如: "workflow_fl40l5"
+                    logger.molecular(f"提取tab_id: {tab_id} <- {node_id}")
+                
                 # 创建存储数据结构
                 molecular_data = {
                     "node_id": node_id,
@@ -91,6 +97,7 @@ class MolecularDataManager:
                     "content": content,
                     "format": file_format,
                     "format_name": cls._get_format_name(file_format),
+                    "tab_id": tab_id,  # 🔑 新增：Tab标识
                     
                     # 基本统计信息
                     "file_stats": {
@@ -175,7 +182,7 @@ class MolecularDataManager:
                 total_nodes = len(MOLECULAR_DATA_CACHE)
                 total_cache_size = sum(len(data.get("content", "")) for data in MOLECULAR_DATA_CACHE.values())
                 
-                # 构建节点列表（简化版本）
+                # 构建节点列表（增加tab_id信息）
                 nodes = []
                 for node_id, data in MOLECULAR_DATA_CACHE.items():
                     nodes.append({
@@ -183,6 +190,7 @@ class MolecularDataManager:
                         "filename": data.get("filename"),
                         "format": data.get("format"),
                         "atoms": data.get("atoms", 0),
+                        "tab_id": data.get("tab_id"),  # 🔑 新增：Tab标识
                         "cached_at": data.get("cached_at"),
                         "access_count": data.get("access_count", 0)
                     })

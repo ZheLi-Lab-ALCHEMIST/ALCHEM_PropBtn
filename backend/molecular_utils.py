@@ -75,14 +75,87 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
         try:
             from .memory import get_cache_status, get_molecular_data
             
-            # 查找内存中的同名文件
+            # 🔑 改进的内存查找策略，支持tab_id匹配
             cache_status = get_cache_status()
             logger.debug(f"🧠 内存缓存状态: {cache_status.get('total_nodes', 0)} 个节点")
             
+            # 🎯 提取当前节点的tab_id（如果node_id可用）
+            current_tab_id = None
+            if node_id and "_node_" in node_id:
+                current_tab_id = node_id.split("_node_")[0]
+                logger.debug(f"🔑 当前节点tab_id: {current_tab_id}")
+            
+            # 🎯 优先级1: 精确匹配（完整node_id匹配）
+            if node_id and node_id in [node.get('node_id') for node in cache_status.get('nodes', [])]:
+                source_data = get_molecular_data(node_id)
+                if source_data and 'content' in source_data and source_data.get('filename') == filename:
+                    content = source_data['content']
+                    logger.info(f"✅ 精确匹配获取分子数据: {filename} (节点 {node_id})")
+                    
+                    # 更新元数据
+                    metadata.update({
+                        "source": "memory_cache_exact",
+                        "source_node_id": node_id,
+                        "cached_at": source_data.get('cached_at'),
+                        "file_size": len(content),
+                        "success": True,
+                        "tab_id": source_data.get('tab_id')
+                    })
+                    
+                    # 添加缓存的分析结果
+                    cache_metadata = {
+                        "format": source_data.get('format'),
+                        "format_name": source_data.get('format_name'),
+                        "atoms": source_data.get('atoms'),
+                        "file_stats": source_data.get('file_stats')
+                    }
+                    metadata.update(cache_metadata)
+                    return content, metadata
+            
+            # 🎯 优先级2: tab_id + 文件名匹配
+            if current_tab_id:
+                for cached_node in cache_status.get('nodes', []):
+                    if (cached_node.get('filename') == filename and 
+                        cached_node.get('tab_id') == current_tab_id):
+                        
+                        source_node_id = cached_node.get('node_id')
+                        logger.debug(f"🔄 Tab匹配找到内存缓存: {filename} (节点 {source_node_id}, tab {current_tab_id})")
+                        
+                        source_data = get_molecular_data(source_node_id)
+                        if source_data and 'content' in source_data:
+                            content = source_data['content']
+                            
+                            # 更新元数据
+                            metadata.update({
+                                "source": "memory_cache_tab_match",
+                                "source_node_id": source_node_id,
+                                "cached_at": source_data.get('cached_at'),
+                                "file_size": len(content),
+                                "success": True,
+                                "tab_id": current_tab_id
+                            })
+                            
+                            # 添加缓存的分析结果
+                            cache_metadata = {
+                                "format": source_data.get('format'),
+                                "format_name": source_data.get('format_name'),
+                                "atoms": source_data.get('atoms'),
+                                "file_stats": source_data.get('file_stats')
+                            }
+                            metadata.update(cache_metadata)
+                            
+                            logger.info(f"✅ Tab匹配获取分子数据成功: {filename}")
+                            logger.debug(f"   来源节点: {source_node_id}")
+                            logger.debug(f"   tab_id: {current_tab_id}")
+                            logger.debug(f"   内容长度: {len(content)} 字符")
+                            
+                            return content, metadata
+            
+            # 🎯 优先级3: 简单文件名匹配（回退方案）
             for cached_node in cache_status.get('nodes', []):
                 if cached_node.get('filename') == filename:
                     source_node_id = cached_node.get('node_id')
-                    logger.debug(f"🔄 找到内存缓存: {filename} (节点 {source_node_id})")
+                    logger.debug(f"🔄 文件名匹配找到内存缓存: {filename} (节点 {source_node_id})")
                     
                     source_data = get_molecular_data(source_node_id)
                     if source_data and 'content' in source_data:
@@ -90,11 +163,12 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
                         
                         # 更新元数据
                         metadata.update({
-                            "source": "memory_cache",
+                            "source": "memory_cache_filename_only",
                             "source_node_id": source_node_id,
                             "cached_at": source_data.get('cached_at'),
                             "file_size": len(content),
-                            "success": True
+                            "success": True,
+                            "tab_id": source_data.get('tab_id')
                         })
                         
                         # 添加缓存的分析结果
@@ -106,7 +180,7 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
                         }
                         metadata.update(cache_metadata)
                         
-                        logger.info(f"✅ 从内存获取分子数据成功: {filename}")
+                        logger.info(f"✅ 文件名匹配获取分子数据成功: {filename}")
                         logger.debug(f"   来源节点: {source_node_id}")
                         logger.debug(f"   内容长度: {len(content)} 字符")
                         
