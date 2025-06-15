@@ -277,10 +277,60 @@ export const editMolecularData = async (node, inputName, editType) => {
     try {
         console.log(`🧪 开始编辑分子数据: 节点 ${node.id}, 类型 ${editType}`);
         
-        // 生成稳定的节点ID
+        // 🔑 关键修复：查找实际存储数据的节点ID
         const dataProcessor = alchem3DCoordinator.getDataProcessor();
-        const nodeId = dataProcessor.generateUniqueNodeId(node);
-        console.log(`🔧 编辑使用的节点ID: ${nodeId}`);
+        const currentNodeId = dataProcessor.generateUniqueNodeId(node);
+        
+        // 首先尝试使用当前节点ID
+        let targetNodeId = currentNodeId;
+        
+        // 如果当前节点ID没有数据，尝试查找实际的数据存储ID
+        try {
+            const checkResponse = await fetch('/alchem_propbtn/api/molecular', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    request_type: 'get_molecular_data',
+                    node_id: currentNodeId
+                })
+            });
+            
+            const checkResult = await checkResponse.json();
+            
+            if (!checkResult.success) {
+                // 当前节点ID没有数据，尝试查找存储的数据
+                console.log(`🔍 节点 ${currentNodeId} 无数据，查找实际存储位置`);
+                
+                // 获取缓存状态，查找包含相同文件名的节点
+                const cacheResponse = await fetch('/alchem_propbtn/api/molecular', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        request_type: 'get_cache_status'
+                    })
+                });
+                
+                const cacheResult = await cacheResponse.json();
+                if (cacheResult.success && cacheResult.data.nodes) {
+                    // 查找包含processed_molecule.pdb的节点
+                    const targetNode = cacheResult.data.nodes.find(n => 
+                        n.filename === 'processed_molecule.pdb' || 
+                        n.filename.includes('processed')
+                    );
+                    
+                    if (targetNode) {
+                        targetNodeId = targetNode.node_id;
+                        console.log(`🎯 找到实际存储位置: ${targetNodeId}`);
+                    } else {
+                        console.log(`❌ 未找到处理后的分子数据`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.warn(`🔍 数据查找异常，使用原节点ID: ${error.message}`);
+        }
+        
+        console.log(`🔧 编辑使用的节点ID: ${targetNodeId}`);
         
         // 调用后端编辑API
         const response = await fetch('/alchem_propbtn/api/molecular', {
@@ -290,7 +340,7 @@ export const editMolecularData = async (node, inputName, editType) => {
             },
             body: JSON.stringify({
                 request_type: 'edit_molecular_data',
-                node_id: nodeId,
+                node_id: targetNodeId,  // 使用找到的目标节点ID
                 edit_type: editType
             })
         });
