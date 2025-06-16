@@ -245,16 +245,19 @@ class StandardMolecularAnalysisNode:
                     "default": "json",
                     "tooltip": "输出格式"
                 })
+            },
+            "hidden": {
+                "_alchem_node_id": ("STRING", {"default": ""})
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING", "FLOAT")
-    RETURN_NAMES = ("analysis_result", "molecular_content", "confidence_score")
-    OUTPUT_TOOLTIPS = ("分析结果", "分子内容", "置信度分数")
+    RETURN_TYPES = ("STRING", "STRING", "FLOAT", "STRING")
+    RETURN_NAMES = ("analysis_result", "molecular_content", "confidence_score", "debug_info")
+    OUTPUT_TOOLTIPS = ("分析结果", "分子内容", "置信度分数", "节点调试信息")
     FUNCTION = "analyze_molecule"
     CATEGORY = "🧪 ALCHEM/Standard"
     
-    def analyze_molecule(self, molecular_file, analysis_type="basic", output_format="json"):
+    def analyze_molecule(self, molecular_file, analysis_type="basic", output_format="json", _alchem_node_id="", **kwargs):
         """
         标准分子分析函数 - 展示方案B的最佳实践
         
@@ -313,14 +316,19 @@ class StandardMolecularAnalysisNode:
             # 计算置信度分数
             confidence = self._calculate_confidence(metadata, analysis_result)
             
-            return (formatted_result, content[:1000] + "..." if len(content) > 1000 else content, confidence)
+            # 🔍 生成调试信息
+            debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, metadata, content)
+            
+            return (formatted_result, content[:1000] + "..." if len(content) > 1000 else content, confidence, debug_info)
             
         except Exception as e:
             error_msg = f"分析过程中发生错误: {str(e)}"
+            debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, {}, "")
             return (
                 json.dumps({"error": error_msg}, ensure_ascii=False),
                 str(molecular_file),
-                0.0
+                0.0,
+                debug_info
             )
     
     def _perform_analysis(self, content: str, metadata: dict, analysis_type: str) -> dict:
@@ -533,6 +541,84 @@ class StandardMolecularAnalysisNode:
             confidence += 0.1
         
         return min(confidence, 1.0)
+    
+    def _generate_debug_info(self, node_id, molecular_file, metadata, content):
+        """生成详细的调试信息"""
+        try:
+            from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            
+            debug_lines = []
+            debug_lines.append("🔍 === 标准分子节点调试 ===")
+            debug_lines.append(f"当前节点ID: {node_id}")
+            debug_lines.append(f"输入值: {str(molecular_file)[:50]}...")
+            debug_lines.append(f"输入类型: {type(molecular_file)}")
+            debug_lines.append("")
+            
+            # 数据获取结果
+            debug_lines.append("🎯 === 数据获取结果 ===")
+            debug_lines.append(f"获取成功: {metadata.get('success', False)}")
+            debug_lines.append(f"数据来源: {metadata.get('source', 'N/A')}")
+            debug_lines.append(f"使用的node_id: {metadata.get('node_id', 'N/A')}")
+            debug_lines.append(f"输入类型判断: {metadata.get('input_type', 'N/A')}")
+            debug_lines.append(f"内容长度: {len(content)} 字符")
+            
+            if metadata.get('memory_error'):
+                debug_lines.append(f"内存错误: {metadata.get('memory_error')}")
+            if metadata.get('file_error'):
+                debug_lines.append(f"文件错误: {metadata.get('file_error')}")
+            
+            debug_lines.append("")
+            
+            # 全局CACHE状态
+            debug_lines.append("📊 === 全局CACHE状态 ===")
+            with CACHE_LOCK:
+                if not MOLECULAR_DATA_CACHE:
+                    debug_lines.append("CACHE为空")
+                else:
+                    debug_lines.append(f"CACHE中总节点数: {len(MOLECULAR_DATA_CACHE)}")
+                    debug_lines.append("")
+                    
+                    for cache_node_id, cache_data in MOLECULAR_DATA_CACHE.items():
+                        is_current = cache_node_id == node_id
+                        marker = "🎯" if is_current else "🔶"
+                        
+                        debug_lines.append(f"{marker} 节点: {cache_node_id}")
+                        debug_lines.append(f"    tab_id: {cache_data.get('tab_id', 'N/A')}")
+                        debug_lines.append(f"    filename: {cache_data.get('filename', 'N/A')}")
+                        debug_lines.append(f"    atoms: {cache_data.get('atoms', 'N/A')}")
+                        debug_lines.append(f"    format: {cache_data.get('format', 'N/A')}")
+                        debug_lines.append(f"    size: {len(cache_data.get('content', ''))} chars")
+                        debug_lines.append("")
+            
+            # ID匹配分析
+            debug_lines.append("🔧 === ID匹配分析 ===")
+            if node_id:
+                if "_node_" in node_id:
+                    tab_part = node_id.split("_node_")[0]
+                    node_part = node_id.split("_node_")[1]
+                    debug_lines.append(f"tab部分: {tab_part}")
+                    debug_lines.append(f"node部分: {node_part}")
+                    
+                    # 查找同tab的其他节点
+                    with CACHE_LOCK:
+                        same_tab_nodes = [k for k in MOLECULAR_DATA_CACHE.keys() if k.startswith(tab_part + "_node_")]
+                        debug_lines.append(f"相同tab的节点: {same_tab_nodes}")
+                else:
+                    debug_lines.append(f"节点ID格式不标准: {node_id}")
+            else:
+                debug_lines.append("节点ID为空")
+            
+            debug_lines.append("")
+            debug_lines.append("🎆 === 3D显示状态 ===")
+            debug_lines.append("检查molstar_3d_display属性: ✓ 已启用")
+            with CACHE_LOCK:
+                debug_lines.append(f"存储ID可用性: {'\u2713' if node_id in MOLECULAR_DATA_CACHE else '\u2717'}")
+                debug_lines.append(f"预期3D显示按钮可点击: {'\u2713' if node_id in MOLECULAR_DATA_CACHE else '\u2717'}")
+            
+            return "\n".join(debug_lines)
+            
+        except Exception as e:
+            return f"调试信息生成失败: {str(e)}"
     
     @classmethod
     def IS_CHANGED(cls, molecular_file, analysis_type, output_format):

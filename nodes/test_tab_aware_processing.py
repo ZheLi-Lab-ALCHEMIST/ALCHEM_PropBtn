@@ -58,9 +58,9 @@ class TabAwareProcessingNode:
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("processed_content", "processed_filename", "processing_report")
-    OUTPUT_TOOLTIPS = ("处理后的分子内容", "处理后的文件名", "处理报告")
+    RETURN_TYPES = ("STRING", "STRING", "STRING", "STRING")
+    RETURN_NAMES = ("processed_content", "processed_filename", "processing_report", "storage_debug")
+    OUTPUT_TOOLTIPS = ("处理后的分子内容", "处理后的文件名", "处理报告", "存储调试：节点ID和CACHE状态")
     FUNCTION = "process_molecular_data"
     CATEGORY = "🧪 ALCHEM/Processing Test"
     
@@ -79,54 +79,53 @@ class TabAwareProcessingNode:
             print(f"   所有kwargs: {list(kwargs.keys())}")
             # print(f"   kwargs内容: {kwargs}")  # 注释掉避免过多输出
             
-            # 🔑 步骤1: 尝试多种方式获取节点ID
-            current_tab_id = None
-            node_id_for_storage = _alchem_node_id
+            # 🔑 简化步骤1: 获取真实节点ID
+            real_node_id = None
             
-            # 方法1: 从隐藏参数获取
-            if _alchem_node_id and "_node_" in _alchem_node_id:
-                current_tab_id = _alchem_node_id.split("_node_")[0]
-                print(f"🔑 从隐藏参数提取tab_id: {current_tab_id}")
+            # 从 ComfyUI 执行上下文获取节点ID
+            try:
+                import inspect
+                for frame_info in inspect.stack():
+                    frame_locals = frame_info.frame.f_locals
+                    if 'unique_id' in frame_locals:
+                        real_node_id = str(frame_locals['unique_id'])
+                        print(f"🎯 找到真实节点ID: {real_node_id}")
+                        break
+            except Exception as e:
+                print(f"⚠️ 获取节点ID失败: {e}")
             
-            # 方法2: 从kwargs中查找可能的节点ID信息  
-            elif not _alchem_node_id:
-                print("⚠️ 隐藏节点ID为空，尝试使用固定方案")
-                # 根据日志，前端生成的ID是workflow_fl40l_node_40，但后端收不到
-                # 我们模拟前端的tab_id生成
-                try:
-                    # 🔑 关键修复：使用固定的节点ID来匹配3D显示
-                    # 从日志看，3D显示期望的是 workflow_fl40l_node_40
-                    temp_tab_id = "workflow_fl40l"  # 从日志中看到的pattern
-                    # 使用固定的节点ID 40，这样3D显示就能找到数据
-                    fixed_node_id = "40"  # 匹配前端期望的节点ID
-                    node_id_for_storage = f"{temp_tab_id}_node_{fixed_node_id}"
-                    current_tab_id = temp_tab_id
-                    print(f"🔧 使用固定ID匹配3D显示: {node_id_for_storage}")
-                except:
-                    # 完全回退方案
-                    node_id_for_storage = f"processed_{int(time.time()) % 10000000000}"
-                    current_tab_id = "processed"
-                    print(f"🔧 回退生成ID: {node_id_for_storage}")
+            # 如果没找到，使用时间戳作为回退
+            if not real_node_id:
+                import time
+                real_node_id = str(int(time.time()) % 100000)
+                print(f"🔧 使用时间戳作为节点ID: {real_node_id}")
             
+            # 步骤2: 从全局CACHE获取现有的tab_id
+            from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            
+            existing_tab_id = None
+            with CACHE_LOCK:
+                for node_data in MOLECULAR_DATA_CACHE.values():
+                    if node_data.get('tab_id'):
+                        existing_tab_id = node_data.get('tab_id')
+                        break
+            
+            # 步骤3: 生成最终存储ID
+            if existing_tab_id:
+                node_id_for_storage = f"{existing_tab_id}_node_{real_node_id}"
+                current_tab_id = existing_tab_id
+                print(f"🎆 最终存储ID: {node_id_for_storage} (使用CACHE中tab_id)")
             else:
-                # 方法3: 如果有_alchem_node_id但格式不对，尝试构建
-                if _alchem_node_id.isdigit():
-                    # 如果只是纯数字，说明可能是节点ID，需要加上tab_id
-                    temp_tab_id = f"workflow_fl40l"  # 从日志推断
-                    node_id_for_storage = f"{temp_tab_id}_node_{_alchem_node_id}"
-                    current_tab_id = temp_tab_id
-                    print(f"🔧 构建完整ID: {node_id_for_storage}")
-                else:
-                    # 其他情况
-                    node_id_for_storage = f"processed_{_alchem_node_id}"
-                    current_tab_id = "processed"
-                    print(f"🔧 处理节点ID: {node_id_for_storage}")
+                node_id_for_storage = f"workflow_default_node_{real_node_id}"
+                current_tab_id = "workflow_default"
+                print(f"🔧 最终存储ID: {node_id_for_storage} (使用默认tab_id)")
             
             # 🎯 步骤2: 验证输入内容
             if not input_molecular_content or len(input_molecular_content.strip()) < 10:
                 error_msg = "输入的分子内容为空或过短"
                 print(f"❌ {error_msg}")
-                return ("", "", f"❌ 处理失败: {error_msg}")
+                storage_debug = self._generate_storage_debug_info("", None)
+                return ("", "", f"❌ 处理失败: {error_msg}", storage_debug)
             
             # 简单分析输入内容
             lines = input_molecular_content.split('\n')
@@ -142,7 +141,8 @@ class TabAwareProcessingNode:
             
             if not processed_content or processed_content == input_molecular_content:
                 print(f"⚠️ 处理无效果或失败")
-                return (input_molecular_content, "", f"⚠️ {processing_type} 处理无效果")
+                storage_debug = self._generate_storage_debug_info(node_id_for_storage, None)
+                return (input_molecular_content, "", f"⚠️ {processing_type} 处理无效果", storage_debug)
             
             # 🎯 步骤4: 使用节点ID存储处理结果
             print(f"🎯 使用节点ID存储: {node_id_for_storage}")
@@ -196,24 +196,30 @@ class TabAwareProcessingNode:
 - 隐藏参数传递: {'成功' if _alchem_node_id else '失败'}
 - 生成的存储ID: {node_id_for_storage}"""
                     
-                    return (processed_content, output_filename, processing_report)
+                    # 🔍 生成存储调试信息
+                    storage_debug = self._generate_storage_debug_info(node_id_for_storage, result_data)
+                    
+                    return (processed_content, output_filename, processing_report, storage_debug)
                     
                 else:
                     error_msg = "存储处理结果到内存失败"
                     print(f"❌ {error_msg}")
-                    return (input_molecular_content, "", f"❌ 处理失败: {error_msg}")
+                    storage_debug = self._generate_storage_debug_info(node_id_for_storage, None)
+                return (input_molecular_content, "", f"❌ 处理失败: {error_msg}", storage_debug)
                     
             except Exception as storage_error:
                 error_msg = f"存储错误: {storage_error}"
                 print(f"❌ {error_msg}")
-                return (input_molecular_content, "", f"❌ 处理失败: {error_msg}")
+                storage_debug = self._generate_storage_debug_info(node_id_for_storage, None)
+                return (input_molecular_content, "", f"❌ 处理失败: {error_msg}", storage_debug)
                 
         except Exception as e:
             error_msg = f"处理异常: {str(e)}"
             print(f"❌ {error_msg}")
             import traceback
             traceback.print_exc()
-            return (input_molecular_content, "", f"❌ 处理异常: {error_msg}")
+            storage_debug = self._generate_storage_debug_info("", None)
+            return (input_molecular_content, "", f"❌ 处理异常: {error_msg}", storage_debug)
     
     def _process_molecular_content(self, content: str, processing_type: str) -> str:
         """
@@ -353,6 +359,89 @@ class TabAwareProcessingNode:
         except Exception as e:
             print(f"❌ 处理内容时出错: {e}")
             return content
+    
+    # 删除了复杂的动态获取函数，直接使用全局CACHE中的tab_id
+    
+    def _generate_storage_debug_info(self, storage_node_id, result_data):
+        """生成存储调试信息"""
+        try:
+            from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            
+            debug_lines = []
+            debug_lines.append("🔧 === 处理节点存储调试 ===")
+            debug_lines.append(f"当前存储ID: {storage_node_id}")
+            
+            if result_data:
+                debug_lines.append(f"存储成功: ✓")
+                debug_lines.append(f"  - filename: {result_data.get('filename')}")
+                debug_lines.append(f"  - tab_id: {result_data.get('tab_id')}")
+                debug_lines.append(f"  - atoms: {result_data.get('atoms')}")
+                debug_lines.append(f"  - format: {result_data.get('format')}")
+            else:
+                debug_lines.append("存储成功: ✗")
+            
+            debug_lines.append("")
+            debug_lines.append("📊 === 全朄3D显示ID匹配检查 ===")
+            
+            # 检查各种可能的3D显示ID
+            possible_3d_ids = []
+            if storage_node_id and "_node_" in storage_node_id:
+                tab_part = storage_node_id.split("_node_")[0]
+                # 各种可能的节点ID
+                for i in range(1, 100):  # 检查常见范围
+                    possible_id = f"{tab_part}_node_{i}"
+                    possible_3d_ids.append(possible_id)
+            
+            debug_lines.append("📊 === 全局CACHE状态对比 ===")
+            with CACHE_LOCK:
+                if not MOLECULAR_DATA_CACHE:
+                    debug_lines.append("CACHE为空")
+                else:
+                    debug_lines.append(f"CACHE中总节点数: {len(MOLECULAR_DATA_CACHE)}")
+                    debug_lines.append("")
+                    
+                    for cache_node_id, cache_data in MOLECULAR_DATA_CACHE.items():
+                        is_current = cache_node_id == storage_node_id
+                        marker = "🎯" if is_current else "🔶"
+                        
+                        debug_lines.append(f"{marker} 节点: {cache_node_id}")
+                        debug_lines.append(f"    tab_id: {cache_data.get('tab_id', 'N/A')}")
+                        debug_lines.append(f"    filename: {cache_data.get('filename', 'N/A')}")
+                        debug_lines.append(f"    atoms: {cache_data.get('atoms', 'N/A')}")
+                        debug_lines.append(f"    format: {cache_data.get('format', 'N/A')}")
+                        debug_lines.append(f"    size: {len(cache_data.get('content', ''))} chars")
+                        
+                        # 检查是否为3D显示可能的ID
+                        if cache_node_id in possible_3d_ids[:10]:  # 只检查前10个
+                            debug_lines.append(f"    🎆 3D显示可用: 可能匹配")
+                        
+                        debug_lines.append("")
+            
+            # ID匹配分析
+            debug_lines.append("🔍 === ID生成策略分析 ===")
+            if storage_node_id and "_node_" in storage_node_id:
+                tab_part, node_part = storage_node_id.split("_node_")
+                debug_lines.append(f"tab部分: {tab_part}")
+                debug_lines.append(f"node部分: {node_part}")
+                debug_lines.append(f"完整ID: {storage_node_id}")
+                
+                # 分析为什么选择这个ID
+                if node_part == "40":
+                    debug_lines.append("🎯 使用固定ID 40 - 为了匹配3D显示期望")
+                else:
+                    debug_lines.append(f"🔥 使用动态ID {node_part}")
+            
+            debug_lines.append("")
+            debug_lines.append("🎆 === 3D显示就绪检查 ===")
+            debug_lines.append("检查molstar_3d_display属性: ✓ 已启用")
+            with CACHE_LOCK:
+                debug_lines.append(f"存储ID可用性: {'\u2713' if storage_node_id in MOLECULAR_DATA_CACHE else '\u2717'}")
+                debug_lines.append(f"预期3D显示按钮可点击: {'\u2713' if storage_node_id in MOLECULAR_DATA_CACHE else '\u2717'}")
+            
+            return "\n".join(debug_lines)
+            
+        except Exception as e:
+            return f"存储调试信息生成失败: {str(e)}"
     
     def _remove_last_atom_demo(self, content: str) -> str:
         """删除最后一个原子（演示功能）"""

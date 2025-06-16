@@ -50,9 +50,9 @@ class SimpleUploadAndDisplayTestNode:
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("file_content", "test_result")
-    OUTPUT_TOOLTIPS = ("分子文件内容", "测试结果报告")
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("file_content", "test_result", "debug_info")
+    OUTPUT_TOOLTIPS = ("分子文件内容", "测试结果报告", "调试信息：节点ID和全局CACHE状态")
     FUNCTION = "test_molecular_workflow"
     CATEGORY = "🧪 ALCHEM/Simple Test"
     
@@ -131,7 +131,8 @@ class SimpleUploadAndDisplayTestNode:
 
 方案B架构状态: 工具函数工作正常，但数据源有问题"""
                 
-                return (str(molecular_file), test_result)
+                debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, metadata)
+                return (str(molecular_file), test_result, debug_info)
             
             else:
                 # 🎉 数据获取成功！
@@ -168,7 +169,10 @@ class SimpleUploadAndDisplayTestNode:
 
 🚀 数据流验证: 上传→内存→工具函数→节点接收内容 ✅"""
 
-                return (content[:500] + "..." if len(content) > 500 else content, test_result)
+                # 🔍 生成详细的调试信息
+                debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, metadata)
+                
+                return (content[:500] + "..." if len(content) > 500 else content, test_result, debug_info)
                 
         except Exception as e:
             error_result = f"""❌ 测试异常: {str(e)}
@@ -178,7 +182,75 @@ class SimpleUploadAndDisplayTestNode:
 2. 数据类型处理有问题  
 3. 后端内存访问异常"""
             
-            return (str(molecular_file), error_result)
+            # 生成错误情况下的调试信息
+            debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, {})
+            return (str(molecular_file), error_result, debug_info)
+    
+    def _generate_debug_info(self, node_id, molecular_file, metadata):
+        """生成详细的调试信息"""
+        try:
+            from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            
+            debug_lines = []
+            debug_lines.append("🔍 === 节点存储信息调试 ===")
+            debug_lines.append(f"当前节点ID: {node_id}")
+            debug_lines.append(f"输入值: {str(molecular_file)[:50]}...")
+            debug_lines.append(f"输入类型: {type(molecular_file)}")
+            debug_lines.append("")
+            
+            # 全局CACHE状态
+            debug_lines.append("📊 === 全局CACHE状态 ===")
+            with CACHE_LOCK:
+                if not MOLECULAR_DATA_CACHE:
+                    debug_lines.append("CACHE为空")
+                else:
+                    debug_lines.append(f"CACHE中总节点数: {len(MOLECULAR_DATA_CACHE)}")
+                    debug_lines.append("")
+                    
+                    for cache_node_id, cache_data in MOLECULAR_DATA_CACHE.items():
+                        debug_lines.append(f"节点: {cache_node_id}")
+                        debug_lines.append(f"  - tab_id: {cache_data.get('tab_id', 'N/A')}")
+                        debug_lines.append(f"  - filename: {cache_data.get('filename', 'N/A')}")
+                        debug_lines.append(f"  - atoms: {cache_data.get('atoms', 'N/A')}")
+                        debug_lines.append(f"  - format: {cache_data.get('format', 'N/A')}")
+                        debug_lines.append(f"  - size: {len(cache_data.get('content', ''))} chars")
+                        debug_lines.append("")
+            
+            # 当前节点的查找结果
+            debug_lines.append("🎯 === 当前节点查找结果 ===")
+            debug_lines.append(f"查找成功: {metadata.get('success', False)}")
+            debug_lines.append(f"数据来源: {metadata.get('source', 'N/A')}")
+            debug_lines.append(f"使用的node_id: {metadata.get('node_id', 'N/A')}")
+            debug_lines.append(f"输入类型判断: {metadata.get('input_type', 'N/A')}")
+            debug_lines.append(f"是否文件名: {metadata.get('is_filename', 'N/A')}")
+            
+            if metadata.get('memory_error'):
+                debug_lines.append(f"内存错误: {metadata.get('memory_error')}")
+            if metadata.get('file_error'):
+                debug_lines.append(f"文件错误: {metadata.get('file_error')}")
+            
+            debug_lines.append("")
+            debug_lines.append("🔧 === ID匹配分析 ===")
+            if node_id:
+                if "_node_" in node_id:
+                    tab_part = node_id.split("_node_")[0]
+                    node_part = node_id.split("_node_")[1]
+                    debug_lines.append(f"解析tab_id: {tab_part}")
+                    debug_lines.append(f"解析node_num: {node_part}")
+                    
+                    # 查找同tab的其他节点
+                    with CACHE_LOCK:
+                        same_tab_nodes = [k for k in MOLECULAR_DATA_CACHE.keys() if k.startswith(tab_part + "_node_")]
+                        debug_lines.append(f"相同tab的节点: {same_tab_nodes}")
+                else:
+                    debug_lines.append(f"节点ID格式不标准: {node_id}")
+            else:
+                debug_lines.append("节点ID为空")
+            
+            return "\n".join(debug_lines)
+            
+        except Exception as e:
+            return f"调试信息生成失败: {str(e)}"
     
     @classmethod
     def IS_CHANGED(cls, molecular_file, test_mode):
