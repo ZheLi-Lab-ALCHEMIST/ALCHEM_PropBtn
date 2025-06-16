@@ -494,12 +494,12 @@ const handleError = (error, context) => {
 ### 版本管理
 
 ```bash
-# 更新版本号
-# 在package.json中更新version字段
-
 # 创建发布tag
 git tag -a v1.0.0 -m "Release version 1.0.0"
 git push origin v1.0.0
+
+# 查看版本历史
+git tag -l
 ```
 
 ### 文档更新
