@@ -4,13 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## User Communication Preferences
 用中文回答我
-每次都用审视的目光，仔公看我输入的潜在问题，你要指出我的问题，并给出明显在我思考框架之外的建议
 不要过度设计，专注于实现功能。
 
 ## Project Overview
 ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件处理和3D可视化。项目采用方案B架构（节点主动数据获取模式），提供上传按钮和3D显示功能，并集成WebSocket实时同步功能。
 
-**当前状态**: ✅ 统一Logging系统已完成，WebSocket实时同步功能已集成
+**当前状态**: ✅ 项目架构稳定，核心功能完善，代码质量优化完成
 
 ## Architecture - 方案B架构 (Node-Pull Pattern)
 
@@ -34,50 +33,67 @@ ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件�
 
 ## Directory Structure
 
-### Active Files (方案B架构)
-- `__init__.py` - 主入口，注册节点和API路由
-- `nodes/test_simple_node.py` - 测试和验证节点
-- `nodes/standard_molecular_node.py` - 标准开发模板
-- `backend/api.py` - 简化API模块（上传、查询、状态）
-- `backend/memory.py` - 内存管理和数据缓存
-- `backend/molecular_utils.py` - 分子数据处理工具
-- `backend/websocket_server.py` - WebSocket实时同步服务器
-- `backend/logging_config.py` - 统一日志系统配置
+### 核心文件结构 (方案B架构)
+
+#### 节点定义
+- `__init__.py` - 主入口，节点注册
+- `nodes/standard_molecular_node.py` - 标准分子处理节点
+- `nodes/test_simple_node.py` - 基础测试节点
+- `nodes/test_tab_aware_processing.py` - Tab感知处理节点
+
+#### 后端服务
+- `backend/api.py` - REST API路由
+- `backend/memory.py` - Tab感知内存管理
+- `backend/molecular_utils.py` - 分子数据工具
+- `backend/websocket_server.py` - 实时同步服务
+- `backend/logging_config.py` - 统一日志系统
+
+#### 前端模块
 - `web/js/extensionMain.js` - 扩展协调器
 - `web/js/uploadMolecules.js` - 分子上传模块
-- `web/js/custom3DDisplay.js` - 3D显示模块
-- `web/js/utils/logger.js` - 统一前端日志系统
-- `web/js/modules/websocket-client.js` - WebSocket客户端
-
-### Deprecated Files
-- ~~`nodes/nodes.py`~~ - 已删除（方案A旧节点已被方案B替代）
+- `web/js/custom3DDisplay.js` - 3D显示和编辑
+- `web/js/modules/` - 功能模块目录
+  - `api-client.js` - API客户端
+  - `data-processor.js` - 数据处理器
+  - `molstar-core.js` - MolStar集成
+  - `ui-integrated.js` - UI集成模块
+  - `websocket-client.js` - WebSocket客户端
+- `web/js/utils/logger.js` - 前端日志系统
 
 ## Development Commands
 
-### ComfyUI Operations
+### ComfyUI 开发流程
 ```bash
-# 重启 ComfyUI (开发时经常需要)
-# 需要手动重启 ComfyUI 服务器以加载节点更改
+# 重启 ComfyUI（修改Python节点后必须）
+# 直接重启 ComfyUI 服务器以加载节点更改
 
-# 查看节点加载状态
-# 检查 ComfyUI 控制台输出中的 ALCHEM_PropBtn 日志
+# 查看加载状态
+# 检查 ComfyUI 控制台中的 ALCHEM 日志输出
 ```
 
-### Development Testing
+### 浏览器调试工具
+```javascript
+// 扩展状态检查
+window.getCustomWidgetStatus()      // 查看扩展整体状态
+window.customWidgetsExtension.status()  // 访问扩展API
+
+// WebSocket和内存调试
+debugWebSocket()        // WebSocket连接状态
+debugNodeIds()          // 节点ID生成和内存状态  
+debugMultiTabMemory()   // 多Tab内存隔离测试
+
+// 日志系统控制
+setGlobalLogLevel('debug')   // 设置日志级别
+// 可选: 'debug', 'info', 'warn', 'error'
+```
+
+### 代码质量检查
 ```bash
-# 在浏览器控制台中调试扩展
-window.getCustomWidgetStatus()  # 查看扩展状态
-window.customWidgetsExtension.status()  # 访问扩展API
+# 检查文件行数（代码优化后）
+wc -l nodes/test_tab_aware_processing.py  # 应该 < 400行
 
-# WebSocket实时同步调试
-debugWebSocket()       # 查看WebSocket连接状态和订阅
-debugNodeIds()         # 查看节点ID和内存状态
-debugMultiTabMemory()  # 测试多tab内存隔离
-
-# 统一日志系统调试
-setGlobalLogLevel('debug')  # 设置全局日志级别
-showLoggerDemo()           # 演示统一日志系统
-getAllLoggerStatus()       # 查看所有Logger状态
+# 验证节点ID绑定
+# 确保编辑按钮严格绑定到节点ID，不使用文件名查找
 ```
 
 ## API Endpoints
@@ -89,38 +105,49 @@ getAllLoggerStatus()       # 查看所有Logger状态
 ## Node Development Guide
 
 ### 创建新的分子处理节点
-1. 参考 `nodes/standard_molecular_node.py` 作为模板
-2. 在 INPUT_TYPES 中添加必要的属性：
-   - `molecular_upload: True` for upload functionality
-   - `molstar_3d_display: True` for 3D display
-3. 使用 `molecular_utils.get_molecular_content()` 获取数据
-4. 在 `__init__.py` 中注册新节点
+1. **参考模板**: 使用 `nodes/standard_molecular_node.py` 作为标准模板
+2. **属性配置**: 在 INPUT_TYPES 中添加所需属性：
+   ```python
+   "molecular_file": ("STRING", {
+       "molecular_upload": True,        # 启用上传功能
+       "molstar_3d_display": True,      # 启用3D显示
+       "molecular_folder": "molecules", # 存储目录
+       "tooltip": "支持上传和3D显示的分子文件"
+   })
+   ```
+3. **数据获取**: 使用 `molecular_utils.get_molecular_content()` 获取数据
+4. **节点注册**: 在 `__init__.py` 中注册新节点
 
-### Widget开发模式
-1. 在 `web/js/` 中创建新的功能模块
-2. 在 `extensionMain.js` 中注册模块
-3. 使用属性检测模式：检测节点属性 → 创建对应Widget
+### Widget开发模式（方案B架构）
+1. **属性驱动**: 节点通过INPUT_TYPES属性声明需要的功能
+2. **自动检测**: 前端JavaScript自动检测属性并添加对应Widget  
+3. **模块化**: 每个功能模块独立，易于维护和扩展
 
 ## Key Implementation Details
 
 ### 数据流程 (Upload → Display → Edit → Sync)
-1. **Upload**: 用户点击📁按钮 → uploadMolecules.js → API存储到内存
-2. **Display**: 用户点击🧪按钮 → custom3DDisplay.js → 从内存获取数据 → MolStar渲染
-3. **Edit**: 用户点击🔧按钮 → API编辑分子数据 → WebSocket推送更新
-4. **Sync**: WebSocket客户端接收更新 → 自动刷新MolStar显示
-5. **Process**: 节点执行时 → molecular_utils.get_molecular_content() → 从内存获取处理
+1. **Upload**: 📁按钮 → uploadMolecules.js → API → Tab感知内存存储
+2. **Display**: 🧪按钮 → custom3DDisplay.js → 节点ID获取数据 → MolStar渲染
+3. **Edit**: 🔧按钮 → **严格节点ID绑定** → API编辑 → WebSocket推送更新
+4. **Sync**: WebSocket客户端接收 → 自动刷新MolStar显示
+5. **Process**: 节点执行 → molecular_utils.get_molecular_content() → 内存获取
 
-### Memory Management
-- 文件内容存储在 `backend/memory.py` 的内存缓存中
-- 使用Tab感知的节点ID作为缓存key (支持多Tab隔离)
-- 支持自动清理和状态监控
-- 集成WebSocket变更通知
+### Tab感知内存管理 (核心优化)
+- **存储key**: `workflow_{tab_hash}_node_{node_id}` 格式
+- **多Tab隔离**: 不同Tab的相同节点ID独立存储
+- **智能清理**: 自动清理过期缓存
+- **状态监控**: 实时缓存状态查询
+
+### 关键修复 - 节点ID严格绑定
+- **问题**: 编辑按钮曾经按文件名查找数据，导致同名文件混乱
+- **解决**: 强制所有操作严格绑定到节点ID，杜绝文件名查找
+- **效果**: 每个节点的3D显示和编辑功能完全独立
 
 ### WebSocket实时同步
-- 基于aiohttp的异步WebSocket服务器
-- 支持连接管理、心跳检测、自动重连
-- 内存变更 → WebSocket推送 → 前端自动刷新
-- 简单编辑功能：删除最后原子（概念验证）
+- **服务器**: 基于aiohttp的异步WebSocket  
+- **功能**: 连接管理、心跳检测、自动重连
+- **同步**: 内存变更 → 推送 → 前端自动更新
+- **编辑**: 支持删除原子等实时分子编辑
 
 ## Logging System (统一日志系统)
 
@@ -172,8 +199,18 @@ logger.ui("界面操作");
 - ⚡ WEBSOCKET - WebSocket通信
 
 ## Important Notes
-- **架构一致性**: 新功能应遵循方案B的属性驱动模式
-- **重启要求**: 修改Python节点后需要重启ComfyUI
-- **前端调试**: 使用浏览器控制台查看扩展状态和日志
-- **日志规范**: 必须使用统一的ALCHEM日志系统，禁止直接使用console.log或logging.getLogger()
-- **WebSocket测试**: 使用debugWebSocket()和debugNodeIds()进行实时同步调试
+
+### 开发原则
+- **架构一致性**: 新功能必须遵循方案B的属性驱动模式
+- **节点ID绑定**: 所有UI操作严格绑定到节点ID，禁止文件名查找
+- **代码质量**: 保持函数简洁（<50行），避免过度设计
+
+### 开发流程
+- **Python修改**: 需要重启ComfyUI服务器
+- **JavaScript修改**: 刷新浏览器即可
+- **调试工具**: 使用浏览器控制台内置的debug函数
+
+### 技术规范
+- **日志系统**: 必须使用统一的ALCHEM日志系统
+- **WebSocket**: 使用提供的调试函数测试实时同步
+- **内存管理**: 基于Tab感知的节点ID存储，确保数据隔离

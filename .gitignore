@@ -1,0 +1,143 @@
+# .gitignore for ALCHEM_PropBtn ComfyUI Extension
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Node.js dependencies (if any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ComfyUI specific
+# User data and temporary files
+user_data/
+temp/
+tmp/
+*.tmp
+
+# Molecular data files (可选 - 根据需要调整)
+# *.pdb
+# *.mol
+# *.mol2
+# *.sdf
+
+# Log files
+*.log
+logs/
+
+# Cache files
+.cache/
+*.cache
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Custom development files
+debug_*.py
+test_*.log
+*.debug
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# IPython history
+.ipython/
+
+# pyenv
+.python-version
+
+# Temporary markdown files (从现有项目结构看)
+*_COMPLETE.md
+*_FIX.md
+DEBUGGING_*.md
+TEST_*.md
+WORKFLOW_*.md
+TAB_AWARE_*.md
+
+# 任务和规划文件 (可选 - 如果不想提交到远程)
+tasks/
+tasks/*.md
+
+# 样式文件中的图片 (可选)
+tasks/样式/*.png
+tasks/参考/*.pdf
