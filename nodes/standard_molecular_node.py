@@ -319,7 +319,7 @@ class StandardMolecularAnalysisNode:
             # 🔍 生成调试信息
             debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, metadata, content)
             
-            return (formatted_result, content[:1000] + "..." if len(content) > 1000 else content, confidence, debug_info)
+            return (formatted_result, content, confidence, debug_info)  # 🔧 修复：输出完整内容，不截断
             
         except Exception as e:
             error_msg = f"分析过程中发生错误: {str(e)}"

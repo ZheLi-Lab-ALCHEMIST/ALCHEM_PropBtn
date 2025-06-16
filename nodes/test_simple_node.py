@@ -172,7 +172,7 @@ class SimpleUploadAndDisplayTestNode:
                 # 🔍 生成详细的调试信息
                 debug_info = self._generate_debug_info(_alchem_node_id, molecular_file, metadata)
                 
-                return (content[:500] + "..." if len(content) > 500 else content, test_result, debug_info)
+                return (content, test_result, debug_info)  # 🔧 修复：输出完整内容，不截断
                 
         except Exception as e:
             error_result = f"""❌ 测试异常: {str(e)}
