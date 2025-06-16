@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+**/__pycache__/
 
 # Distribution / packaging
 .Python
@@ -66,6 +67,10 @@ venv.bak/
 *~
 .DS_Store
 Thumbs.db
+
+# Claude AI files
+.claude/
+.claude/*
 
 # Node.js dependencies (if any)
 node_modules/
