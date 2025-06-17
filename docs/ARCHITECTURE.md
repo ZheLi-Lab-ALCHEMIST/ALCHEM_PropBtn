@@ -2,7 +2,7 @@
 
 ## 🏗️ 系统架构概览
 
-ALCHEM_PropBtn 采用**方案B架构**（节点主动数据获取模式），实现了分子文件的上传、处理、3D显示和实时编辑功能。
+ALCHEM_PropBtn 采用**方案B架构**（节点主动数据获取模式），结合**Mixin设计模式**，实现了分子文件的上传、处理、3D显示和实时编辑功能。
 
 ### 架构特点
 
@@ -11,6 +11,7 @@ ALCHEM_PropBtn 采用**方案B架构**（节点主动数据获取模式），实
 - 🧠 **智能内存管理**: Tab感知的数据隔离
 - 📡 **实时同步**: WebSocket驱动的数据更新
 - 🔧 **模块化设计**: 松耦合的功能组件
+- 🧪 **Mixin架构**: 统一的3D显示功能混入，简化节点开发
 
 ## 📊 数据流架构
 
@@ -37,19 +38,106 @@ graph TB
 
 ## 🔧 核心组件
 
-### 1. 属性驱动系统
+### 1. MolstarDisplayMixin 统一架构
 
-#### 节点定义（Python）
+#### 🧪 Mixin设计模式优势
+- **代码减少90%**: 从400+行简化到30-50行
+- **零配置3D显示**: 一行代码启用完整功能
+- **标准化错误处理**: 统一的异常处理模板
+- **自动节点ID管理**: Tab感知的唯一ID生成
+- **严格数据隔离**: 避免重名文件数据混乱
+
+#### 节点定义（传统方式 vs Mixin方式）
+
+**❌ 传统方式（复杂且容易出错）:**
 ```python
-# 在节点的 INPUT_TYPES 中声明功能
+# 需要手动配置大量属性
 "molecular_file": ("STRING", {
-    "molecular_upload": True,       # 启用上传功能
-    "molstar_3d_display": True,     # 启用3D显示  
-    "molecular_folder": "molecules" # 存储目录
-})
+    "default": "molecule.pdb",
+    "molecular_upload": True,        # 启用上传按钮
+    "molstar_3d_display": True,      # 启用3D显示按钮
+    "molecular_folder": "molecules", # 存储文件夹
+    "display_mode": "ball_and_stick", # 3D显示模式
+    "background_color": "#1E1E1E",   # 3D背景色
+    "tooltip": "分子文件 - 支持上传和3D显示"
+}),
+"_alchem_node_id": ("STRING", {"default": ""})  # 隐藏的节点ID参数
 ```
 
-#### 前端检测（JavaScript）
+**✅ Mixin方式（一行代码自动生成）:**
+```python
+from .mixins.molstar_display_mixin import MolstarDisplayMixin
+
+class YourNode(MolstarDisplayMixin):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                **cls.get_molstar_input_config("molecular_file"),  # 🔑 自动生成所有配置
+                # 你的其他参数...
+                "analysis_type": (["basic", "detailed"], {"default": "basic"})
+            }
+        }
+```
+
+### 2. 两种标准节点模式
+
+#### 🔸 输入节点（Upload/Source Nodes）
+**特征**: 接收文件名，提供内容输出，通常是工作流的起点
+
+```python
+class SimpleMolecularAnalyzer(MolstarDisplayMixin):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                **cls.get_molstar_input_config("molecular_file"),  # 📁上传+🧪3D显示
+                "analysis_type": (["basic", "detailed"], {"default": "basic"})
+            }
+        }
+    
+    def analyze_molecule(self, molecular_file, analysis_type, **kwargs):
+        # 🔑 一行代码获取分子数据
+        content, metadata = self.get_molecular_data(molecular_file, kwargs)
+        
+        # 🔑 一行代码验证数据
+        if not self.validate_molecular_data(metadata):
+            return self.create_error_output(metadata)
+        
+        # 🚀 专注业务逻辑
+        result = self._perform_analysis(content, metadata, analysis_type)
+        return (result, content, self.generate_debug_info(kwargs.get('_alchem_node_id'), metadata))
+```
+
+#### 🔸 中间节点（Processing/Transform Nodes）
+**特征**: 接收内容输入，进行处理，输出处理后的内容
+
+```python
+class SimpleTabAwareProcessor(MolstarDisplayMixin):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                **cls.get_processing_input_config(
+                    content_param="input_molecular_content",  # 内容输入
+                    output_param="output_filename"            # 🧪3D显示文件名
+                ),
+                "processing_type": (["remove_hydrogens", "center_molecule"], {"default": "remove_hydrogens"})
+            }
+        }
+    
+    def process_molecular_data(self, input_molecular_content, output_filename, processing_type, **kwargs):
+        # 🔑 一行代码完成整个处理流程！
+        return self.process_direct_content(
+            content=input_molecular_content,
+            output_filename=output_filename,
+            node_id=kwargs.get('_alchem_node_id', ''),
+            processing_func=self._process_molecular_content,
+            processing_type=processing_type
+        )
+```
+
+#### 前端自动检测（JavaScript）
 ```javascript
 // extensionMain.js 自动检测属性并创建Widget
 const process3DDisplayNodes = (nodeType, nodeData) => {
@@ -64,19 +152,64 @@ const process3DDisplayNodes = (nodeType, nodeData) => {
 };
 ```
 
-### 2. Tab感知内存管理
+### 3. 严格节点ID绑定系统
 
-#### 存储策略
+#### 🔑 核心原则：完全基于节点ID的数据隔离
+
+**问题背景**: 原系统中多个节点使用相同文件名（如`processed_molecule.pdb`）时会产生数据混乱
+
+**解决方案**: 严格节点ID绑定 + 文件重名保护
+
+#### 存储策略（Tab感知）
 ```python
-# backend/memory.py
+# backend/memory.py - Tab感知的唯一存储key
 # 格式: workflow_{tab_hash}_node_{node_id}
-node_id = f"workflow_fl40l5_node_23"
+node_id = f"workflow_fl40l_node_95"
 
-# 多Tab隔离
+# 多Tab+多节点完全隔离
 MOLECULAR_DATA_CACHE = {
-    "workflow_fl40l5_node_23": {...},  # Tab A 的节点23
-    "workflow_x8k2n_node_23": {...}   # Tab B 的节点23 (同ID但不同Tab)
+    "workflow_fl40l_node_78": {    # Tab A的节点78
+        "filename": "BZN.pdb",
+        "content": "...",
+        "tab_id": "workflow_fl40l"
+    },
+    "workflow_fl40l_node_95": {    # Tab A的节点95 
+        "filename": "processed_molecule.pdb",  # 🔑 相同文件名但不同节点
+        "content": "...",
+        "tab_id": "workflow_fl40l"
+    },
+    "workflow_fl40l_node_101": {   # Tab A的节点101
+        "filename": "processed_molecule.pdb",  # 🔑 相同文件名但不同节点  
+        "content": "...",
+        "tab_id": "workflow_fl40l"
+    }
 }
+```
+
+#### 文件系统重名保护
+```python
+# backend/memory.py - _save_to_filesystem()
+def _save_to_filesystem(filename, folder, content, node_id):
+    if node_id:
+        # 🔑 修复：为重名文件添加节点ID后缀
+        node_suffix = node_id.split('_node_')[-1]  # 提取节点数字
+        unique_filename = f"{name}_node{node_suffix}.{ext}"
+        # processed_molecule.pdb → processed_molecule_node95.pdb
+        # processed_molecule.pdb → processed_molecule_node101.pdb
+```
+
+#### 前后端ID一致性保证
+```python
+# nodes/mixins/molstar_display_mixin.py - _get_tab_aware_node_id()
+def _get_tab_aware_node_id(self, real_node_id: str) -> str:
+    # 🔑 修复：使用与前端一致的tab_id格式
+    existing_tab_ids = [data.get('tab_id') for data in MOLECULAR_DATA_CACHE.values()]
+    if existing_tab_ids:
+        tab_id = sorted(existing_tab_ids)[-1]  # 使用已存在的tab_id
+    else:
+        tab_id = "workflow_fl40l"  # 与前端simpleHash()一致的默认值
+    
+    return f"{tab_id}_node_{real_node_id}"
 ```
 
 #### 智能ID生成

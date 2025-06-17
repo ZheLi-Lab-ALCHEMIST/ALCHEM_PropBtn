@@ -103,15 +103,159 @@ setGlobalLogLevel('debug')         // 显示详细日志
 
 ## 🏗️ 创建自定义节点
 
-### 快速开始模板
+### 🧪 推荐使用Mixin架构（新方式）
 
-#### 1. 复制标准模板
+#### 1. 使用Mixin模板（推荐）
+```bash
+# 参考现代化的Mixin示例
+cp nodes/examples_with_mixin.py nodes/your_new_node.py
+```
+
+#### 2. 传统方式（不推荐，代码复杂）
 ```bash
 cp nodes/standard_molecular_node.py nodes/your_new_node.py
 ```
 
-#### 2. 基础节点结构
+### 🧪 Mixin架构节点开发
+
+#### 📋 两种节点类型选择
+
+##### 🔸 类型1: 输入节点（文件名输入模式）
+**用途**: 工作流起点，上传分子文件，进行分析
+**示例**: `SimpleMolecularAnalyzer`
+
 ```python
+from .mixins.molstar_display_mixin import MolstarDisplayMixin
+
+class YourAnalyzerNode(MolstarDisplayMixin):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                **cls.get_molstar_input_config("molecular_file"),  # 🔑 一行启用📁上传+🧪3D
+                # 你的业务参数
+                "analysis_type": (["basic", "detailed", "advanced"], {"default": "basic"}),
+                "custom_option": ("STRING", {"default": "value"})
+            }
+        }
+    
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("analysis_result", "molecular_content", "debug_info")
+    FUNCTION = "analyze_molecule"
+    CATEGORY = "🧪 ALCHEM/Your Category"
+    
+    def analyze_molecule(self, molecular_file, analysis_type, custom_option, **kwargs):
+        # 🔑 一行获取数据
+        content, metadata = self.get_molecular_data(molecular_file, kwargs)
+        
+        # 🔑 一行验证数据
+        if not self.validate_molecular_data(metadata):
+            return self.create_error_output(metadata)
+        
+        # 🚀 专注业务逻辑
+        analysis_result = self._perform_analysis(content, metadata, analysis_type, custom_option)
+        debug_info = self.generate_debug_info(kwargs.get('_alchem_node_id'), metadata)
+        
+        return (analysis_result, content, debug_info)
+    
+    def _perform_analysis(self, content, metadata, analysis_type, custom_option):
+        """你的分析逻辑"""
+        # content: 完整分子文件内容
+        # metadata: 包含格式、原子数等信息
+        
+        lines = content.split('\n')
+        atom_lines = [line for line in lines if line.startswith(('ATOM', 'HETATM'))]
+        
+        if analysis_type == "basic":
+            return f"分子格式: {metadata.get('format_name')}, 原子数: {len(atom_lines)}"
+        elif analysis_type == "detailed":
+            # 添加详细分析逻辑
+            return f"详细分析结果..."
+        else:
+            # 高级分析
+            return f"高级分析结果..."
+    
+    @classmethod
+    def IS_CHANGED(cls, molecular_file, analysis_type, custom_option, _alchem_node_id=""):
+        return cls.simple_force_execute_is_changed(
+            molecular_file=molecular_file,
+            analysis_type=analysis_type,
+            custom_option=custom_option,
+            _alchem_node_id=_alchem_node_id
+        )
+```
+
+##### 🔸 类型2: 中间节点（内容输入模式）
+**用途**: 处理上游数据，进行分子变换、编辑等
+**示例**: `SimpleTabAwareProcessor`
+
+```python
+class YourProcessingNode(MolstarDisplayMixin):
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                **cls.get_processing_input_config(
+                    content_param="input_molecular_content",  # 内容输入框
+                    output_param="output_filename",           # 🧪3D显示文件名
+                    custom_config={
+                        'output_config': {
+                            "default": "your_processed_molecule.pdb",
+                            "tooltip": "处理后的分子文件名"
+                        }
+                    }
+                ),
+                # 你的业务参数
+                "processing_mode": (["transform", "filter", "edit"], {"default": "transform"}),
+                "intensity": ("FLOAT", {"default": 1.0, "min": 0.1, "max": 2.0})
+            }
+        }
+    
+    RETURN_TYPES = ("STRING", "STRING", "STRING")
+    RETURN_NAMES = ("processed_content", "processing_report", "debug_info")
+    FUNCTION = "process_molecular_data"
+    CATEGORY = "🧪 ALCHEM/Your Category"
+    
+    def process_molecular_data(self, input_molecular_content, output_filename, processing_mode, intensity, **kwargs):
+        # 🔑 一行完成整个处理流程！
+        return self.process_direct_content(
+            content=input_molecular_content,
+            output_filename=output_filename,
+            node_id=kwargs.get('_alchem_node_id', ''),
+            processing_func=self._process_molecular_content,
+            processing_mode=processing_mode,
+            intensity=intensity
+        )
+    
+    def _process_molecular_content(self, content: str, processing_mode: str, intensity: float) -> str:
+        """你的处理逻辑"""
+        if processing_mode == "transform":
+            return self._transform_molecule(content, intensity)
+        elif processing_mode == "filter":
+            return self._filter_molecule(content, intensity)
+        elif processing_mode == "edit":
+            return self._edit_molecule(content, intensity)
+        return content
+    
+    def _transform_molecule(self, content: str, intensity: float) -> str:
+        """分子变换逻辑"""
+        # 实现你的变换算法
+        return content
+    
+    @classmethod
+    def IS_CHANGED(cls, input_molecular_content, output_filename, processing_mode, intensity, _alchem_node_id=""):
+        return cls.simple_force_execute_is_changed(
+            input_molecular_content=input_molecular_content,
+            output_filename=output_filename,
+            processing_mode=processing_mode,
+            intensity=intensity,
+            _alchem_node_id=_alchem_node_id
+        )
+```
+
+#### 📋 传统方式节点结构（不推荐）
+```python
+# ❌ 传统方式：需要手动配置大量属性，容易出错
 from ..backend.molecular_utils import get_molecular_content
 
 class YourCustomNode:
@@ -120,82 +264,66 @@ class YourCustomNode:
         return {
             "required": {
                 "molecular_file": ("STRING", {
-                    "molecular_upload": True,        # 🔑 启用上传按钮
-                    "molstar_3d_display": True,      # 🔑 启用3D显示按钮
-                    "molecular_folder": "molecules", # 存储文件夹
-                    "tooltip": "你的节点说明"
+                    "molecular_upload": True,        
+                    "molstar_3d_display": True,      
+                    "molecular_folder": "molecules", 
+                    "display_mode": "ball_and_stick",
+                    "background_color": "#1E1E1E",
+                    "tooltip": "手动配置所有属性"
                 }),
+                "_alchem_node_id": ("STRING", {"default": ""}),  # 手动添加
                 "custom_param": ("STRING", {"default": "value"})
             }
         }
     
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("result", "report")
-    FUNCTION = "process_data"
-    CATEGORY = "🧪 ALCHEM/Your Category"
-    
-    def process_data(self, molecular_file, custom_param, **kwargs):
-        """处理分子数据"""
-        try:
-            # 🔑 第1步：获取分子数据（必须）
-            content, metadata = get_molecular_content(molecular_file)
-            
-            # 🔑 第2步：检查获取是否成功（必须）
-            if not metadata.get('success'):
-                return ("", f"错误：{metadata.get('error')}")
-            
-            # 🚀 第3步：你的业务逻辑
-            result = self.your_processing_logic(content, metadata, custom_param)
-            
-            return (result, "处理完成")
-            
-        except Exception as e:
-            return ("", f"处理异常：{str(e)}")
-    
-    def your_processing_logic(self, content, metadata, param):
-        """实现你的具体功能"""
-        # content: 完整的分子文件内容字符串
-        # metadata: 包含格式、原子数等信息的字典
-        
-        # 利用预分析的信息
-        file_format = metadata.get('format_name', 'Unknown')
-        atom_count = metadata.get('atoms', 0)
-        data_source = metadata.get('source', 'unknown')
-        
-        # 在这里添加你的处理逻辑
-        processed_content = content  # 示例：直接返回原内容
-        
-        return processed_content
+    # ... 需要手动实现所有错误处理、调试信息等逻辑
+```
 
+#### 3. 节点注册和导出
+
+**在节点文件末尾添加：**
+```python
 # 节点注册
 NODE_CLASS_MAPPINGS = {
-    "YourCustomNode": YourCustomNode,
+    "YourAnalyzerNode": YourAnalyzerNode,
+    "YourProcessingNode": YourProcessingNode,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "YourCustomNode": "🧪 Your Custom Node",
+    "YourAnalyzerNode": "🧪📊 Your Analyzer (输入节点)",
+    "YourProcessingNode": "🧪⚡ Your Processor (处理节点)",
 }
 ```
 
-#### 3. 在__init__.py中注册
-```python
-from .nodes.your_new_node import NODE_CLASS_MAPPINGS as YOUR_MAPPINGS
-NODE_CLASS_MAPPINGS.update(YOUR_MAPPINGS)
-```
-
-### 注册节点
-
-在 `__init__.py` 中添加：
-
+**在 `__init__.py` 中注册：**
 ```python
 # 导入你的节点
 try:
-    from .nodes.your_custom_node import NODE_CLASS_MAPPINGS as YOUR_MAPPINGS
+    from .nodes.your_new_node import NODE_CLASS_MAPPINGS as YOUR_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as YOUR_DISPLAY_MAPPINGS
     NODE_CLASS_MAPPINGS.update(YOUR_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(YOUR_DISPLAY_MAPPINGS)
     logger.success("你的节点加载成功")
 except ImportError as e:
     logger.warning(f"你的节点导入失败: {e}")
 ```
+
+### 🧪 Mixin优势总结
+
+#### ✅ 使用Mixin的好处：
+1. **代码减少90%** - 从400+行减少到30-50行
+2. **零配置3D显示** - 一行代码启用完整功能
+3. **自动错误处理** - 标准化的异常处理模板
+4. **严格数据隔离** - 避免重名文件数据混乱
+5. **Tab感知内存** - 多Tab环境下的智能数据管理
+6. **自动调试信息** - 统一的调试信息生成
+7. **强制缓存一致性** - 自动解决IS_CHANGED问题
+
+#### ❌ 传统方式的问题：
+1. **重复代码多** - 每个节点都要写相同的基础逻辑
+2. **容易出错** - 手动配置属性容易遗漏
+3. **维护困难** - 修改基础功能需要改所有节点
+4. **数据混乱** - 重名文件会导致节点间数据错乱
+5. **调试困难** - 缺乏统一的调试信息
 
 ## 🎨 创建自定义Widget
 

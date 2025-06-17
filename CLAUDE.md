@@ -10,9 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 
 ## Project Overview
-ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件处理和3D可视化。项目采用方案B架构（节点主动数据获取模式），提供上传按钮和3D显示功能，并集成WebSocket实时同步功能。
+ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件处理和3D可视化。项目采用**方案B架构**（节点主动数据获取模式）结合**MolstarDisplayMixin统一架构**，提供上传按钮和3D显示功能，并集成WebSocket实时同步功能。
 
-**当前状态**: ✅ 项目架构稳定，核心功能完善，代码质量优化完成
+**当前状态**: ✅ 项目架构稳定，Mixin架构完善，重名文件问题已解决，严格节点ID绑定系统正常工作
 
 ## Architecture - 方案B架构 (Node-Pull Pattern)
 
@@ -107,19 +107,48 @@ wc -l nodes/test_tab_aware_processing.py  # 应该 < 400行
 
 ## Node Development Guide
 
-### 创建新的分子处理节点
-1. **参考模板**: 使用 `nodes/standard_molecular_node.py` 作为标准模板
-2. **属性配置**: 在 INPUT_TYPES 中添加所需属性：
+### 🧪 推荐使用MolstarDisplayMixin架构（新方式）
+
+#### 创建新的分子处理节点
+1. **参考模板**: 使用 `nodes/examples_with_mixin.py` 作为现代化模板
+2. **选择节点类型**:
+   - **输入节点**: `SimpleMolecularAnalyzer` - 文件名输入，用于工作流起点
+   - **处理节点**: `SimpleTabAwareProcessor` - 内容输入，用于中间处理
+
+3. **Mixin配置**: 一行代码启用完整功能
    ```python
-   "molecular_file": ("STRING", {
-       "molecular_upload": True,        # 启用上传功能
-       "molstar_3d_display": True,      # 启用3D显示
-       "molecular_folder": "molecules", # 存储目录
-       "tooltip": "支持上传和3D显示的分子文件"
-   })
+   from .mixins.molstar_display_mixin import MolstarDisplayMixin
+   
+   class YourNode(MolstarDisplayMixin):
+       @classmethod
+       def INPUT_TYPES(cls):
+           return {
+               "required": {
+                   **cls.get_molstar_input_config("molecular_file"),  # 🔑 零配置3D显示
+                   # 你的业务参数...
+               }
+           }
    ```
-3. **数据获取**: 使用 `molecular_utils.get_molecular_content()` 获取数据
-4. **节点注册**: 在 `__init__.py` 中注册新节点
+
+4. **数据处理**: 使用Mixin提供的简化接口
+   ```python
+   def your_function(self, molecular_file, **kwargs):
+       # 🔑 一行获取数据
+       content, metadata = self.get_molecular_data(molecular_file, kwargs)
+       # 🔑 一行验证数据  
+       if not self.validate_molecular_data(metadata):
+           return self.create_error_output(metadata)
+       # 🚀 专注业务逻辑
+       result = your_processing_logic(content)
+       return (result, self.generate_debug_info(kwargs.get('_alchem_node_id'), metadata))
+   ```
+
+5. **节点注册**: 在 `__init__.py` 中注册新节点
+
+### ❌ 传统方式（不推荐）
+- 使用 `nodes/standard_molecular_node.py` 模板
+- 需要手动配置大量属性，容易出错
+- 代码复杂（400+行 vs Mixin的30-50行）
 
 ### Widget开发模式（方案B架构）
 1. **属性驱动**: 节点通过INPUT_TYPES属性声明需要的功能
@@ -204,9 +233,10 @@ logger.ui("界面操作");
 ## Important Notes
 
 ### 开发原则
+- **🧪 优先使用Mixin**: 新节点开发优先使用MolstarDisplayMixin架构
 - **架构一致性**: 新功能必须遵循方案B的属性驱动模式
-- **节点ID绑定**: 所有UI操作严格绑定到节点ID，禁止文件名查找
-- **代码质量**: 保持函数简洁（<50行），避免过度设计
+- **严格节点ID绑定**: 所有UI操作严格绑定到节点ID，杜绝重名文件数据混乱
+- **代码质量**: 使用Mixin后保持函数简洁（<50行），避免过度设计
 
 ### 开发流程
 - **Python修改**: 需要重启ComfyUI服务器
