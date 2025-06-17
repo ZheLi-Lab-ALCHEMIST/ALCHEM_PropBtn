@@ -1,5 +1,5 @@
 """
-🧪 使用MolstarDisplayMixin的示例节点 - 完整开发指南
+🧪 使用MolstarDisplayMixin的示例节点 - 核心功能展示
 
 ═══════════════════════════════════════════════════════════════════════════════
                         两种节点类型的标准定义范式
@@ -12,14 +12,14 @@
 **输入**: `molecular_file` (文件名)
 **输出**: `file_content` (分子内容)
 **用途**: 上传分子文件，提供分子数据源
-**示例**: SimpleMolecularAnalyzer, StandardMolecularAnalysisNode
+**示例**: SimpleMolecularAnalyzer
 
 ### 🔸 中间节点 (Processing/Transform Nodes) 
 **特征**: 接收内容输入，进行处理，输出处理后的内容
 **输入**: `input_molecular_content` (分子内容)
 **输出**: `processed_content` (处理后内容) 
 **用途**: 分子编辑、变换、分析等中间处理
-**示例**: SimpleTabAwareProcessor, test_tab_aware_processing.py
+**示例**: SimpleTabAwareProcessor
 
 ## 🎯 Mixin使用模式对比
 
@@ -133,208 +133,12 @@ class YourProcessNode(MolstarDisplayMixin):
 4. **避免错误** - 不会忘记配置某个必需的属性
 """
 
-from .mixins.molstar_display_mixin import MolstarDisplayMixin, create_molstar_node_class
-import re
+from .mixins.molstar_display_mixin import MolstarDisplayMixin
 import time
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 示例1: 中间节点 - 分子编辑器 (对比test_tab_aware_processing.py)
-# ═════════════════════════════════════════════════════════════════════════════
-
-class SimpleMolecularEditor(MolstarDisplayMixin):
-    """
-    🧪✂️ 中间节点示例 - 分子编辑器 (使用Mixin简化版)
-    
-    📋 节点类型: 中间处理节点 (Processing Node)
-    📥 输入模式: 内容输入 (input_molecular_content)
-    📤 输出模式: 处理后内容 (processed_content) 
-    🔗 工作流位置: 上游节点 → 本节点 → 下游节点
-    
-    对比原始test_tab_aware_processing.py：
-    - 原版: 400+ 行复杂代码，手动内存管理
-    - 新版: 50 行简洁代码，自动CACHE存储  
-    - 功能完全相同: 删除氢原子/分子居中/简单编辑 + 3D显示
-    
-    💡 使用场景:
-    - 从上游节点接收分子内容
-    - 进行分子编辑操作
-    - 输出处理后的内容给下游节点
-    - 同时支持3D显示查看处理结果
-    """
-    
-    @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "input_molecular_content": ("STRING", {
-                    "multiline": True,
-                    "default": "",
-                    "tooltip": "输入的分子文件内容（来自上游节点）"
-                }),
-                
-                # 🔑 配置机制对比：传统方式 vs Mixin方式
-                # ❌ 传统方式需要手动配置所有属性：
-                # "output_filename": ("STRING", {
-                #     "default": "processed_molecule.pdb",
-                #     "molstar_3d_display": True,      # 启用3D显示按钮
-                #     "molecular_folder": "molecules", # 存储文件夹
-                #     "display_mode": "ball_and_stick", # 3D显示模式  
-                #     "background_color": "#1E1E1E",   # 3D背景色
-                #     "tooltip": "处理后的文件名 - 支持3D显示"
-                # }),
-                # "_alchem_node_id": ("STRING", {"default": ""})  # 隐藏的节点ID参数
-                
-                # ✅ Mixin方式：**语法自动展开，生成上述所有配置
-                **cls.get_molstar_input_config(
-                    "output_filename", 
-                    enable_upload=False,  # 处理节点不需要上传功能
-                    custom_config={
-                        "default": "processed_molecule.pdb",
-                        "tooltip": "处理后的文件名 - 支持3D显示"
-                    }
-                ),
-                "processing_type": (["remove_hydrogens", "center_molecule", "simple_edit"], {
-                    "default": "remove_hydrogens",
-                    "tooltip": "处理类型"
-                })
-            }
-        }
-    
-    RETURN_TYPES = ("STRING", "STRING", "STRING")
-    RETURN_NAMES = ("processed_content", "processing_report", "debug_info")
-    FUNCTION = "process_molecular_data"
-    CATEGORY = "🧪 ALCHEM/Examples with Mixin"
-    
-    def process_molecular_data(self, input_molecular_content, output_filename, processing_type, **kwargs):
-        """
-        🎯 核心业务逻辑 - 只需关注分子处理，基础设施由Mixin处理
-        """
-        try:
-            # 🔑 一行代码获取和验证数据（支持直接内容输入）
-            if len(input_molecular_content.strip()) > 10:
-                # 直接使用输入内容
-                content = input_molecular_content
-                metadata = {'success': True, 'source': 'direct_input', 'atoms': len([l for l in content.split('\n') if l.startswith('ATOM')])}
-            else:
-                return self.create_error_output({'success': False, 'error': '输入内容为空或过短'})
-            
-            # 🚀 专注于业务逻辑：分子处理
-            processed_content = self._process_molecular_content(content, processing_type)
-            
-            # 🔑 一行代码存储到后端供3D显示使用
-            node_id = kwargs.get('_alchem_node_id', '')
-            store_result = self.store_processed_data(processed_content, output_filename, node_id)
-            
-            # 🔑 一行代码生成标准化调试信息
-            debug_info = self.generate_debug_info(node_id, metadata)
-            
-            # 生成处理报告
-            report = f"""✅ 简化版分子处理完成 (使用MolstarDisplayMixin)
-
-🔧 处理信息:
-- 处理类型: {processing_type}
-- 输出文件: {output_filename}
-- 输入原子数: {metadata.get('atoms', 'N/A')}
-- 存储状态: {'✓' if store_result.get('success') else '✗'}
-
-🎯 架构优势验证:
-- ✅ 代码量减少80%（从400行->50行）
-- ✅ 3D显示零配置启用
-- ✅ 错误处理标准化
-- ✅ 调试信息自动生成
-
-🚀 功能完全保持：删除氢原子/分子居中/简单编辑 + 3D显示"""
-            
-            return (processed_content, report, debug_info)
-            
-        except Exception as e:
-            # 🔑 标准化的错误处理
-            error_metadata = {'success': False, 'error': str(e), 'node_id': kwargs.get('_alchem_node_id')}
-            return self.create_error_output(error_metadata)
-    
-    def _process_molecular_content(self, content: str, processing_type: str) -> str:
-        """业务逻辑：实际的分子处理（与原版相同）"""
-        if processing_type == "remove_hydrogens":
-            return self._remove_hydrogens(content)
-        elif processing_type == "center_molecule":
-            return self._center_molecule(content)
-        elif processing_type == "simple_edit":
-            return self._simple_edit(content)
-        return content
-    
-    def _remove_hydrogens(self, content: str) -> str:
-        """删除氢原子（简化版）"""
-        lines = content.split('\n')
-        processed_lines = []
-        for line in lines:
-            if line.startswith(('ATOM', 'HETATM')) and len(line) > 12:
-                atom_name = line[12:16].strip()
-                if not atom_name.upper().startswith('H'):
-                    processed_lines.append(line)
-            else:
-                processed_lines.append(line)
-        return '\n'.join(processed_lines)
-    
-    def _center_molecule(self, content: str) -> str:
-        """分子居中（简化版）"""
-        lines = content.split('\n')
-        coords = []
-        
-        # 收集坐标
-        for line in lines:
-            if line.startswith('ATOM') and len(line) > 54:
-                try:
-                    x, y, z = float(line[30:38]), float(line[38:46]), float(line[46:54])
-                    coords.append((x, y, z))
-                except:
-                    continue
-        
-        if not coords:
-            return content
-        
-        # 计算质心并应用
-        center_x = sum(x for x, y, z in coords) / len(coords)
-        center_y = sum(y for x, y, z in coords) / len(coords) 
-        center_z = sum(z for x, y, z in coords) / len(coords)
-        
-        processed_lines = []
-        for line in lines:
-            if line.startswith('ATOM') and len(line) > 54:
-                try:
-                    x = float(line[30:38]) - center_x
-                    y = float(line[38:46]) - center_y
-                    z = float(line[46:54]) - center_z
-                    new_line = line[:30] + f"{x:8.3f}{y:8.3f}{z:8.3f}" + line[54:]
-                    processed_lines.append(new_line)
-                except:
-                    processed_lines.append(line)
-            else:
-                processed_lines.append(line)
-        
-        return '\n'.join(processed_lines)
-    
-    def _simple_edit(self, content: str) -> str:
-        """简单编辑：删除最后一个原子"""
-        lines = content.split('\n')
-        atom_indices = [i for i, line in enumerate(lines) if line.startswith(('ATOM', 'HETATM'))]
-        if atom_indices:
-            lines.pop(atom_indices[-1])
-        return '\n'.join(lines)
-    
-    @classmethod
-    def IS_CHANGED(cls, input_molecular_content, output_filename, processing_type, _alchem_node_id=""):
-        """🔥 简单强制执行IS_CHANGED - 解决缓存一致性问题"""
-        return cls.simple_force_execute_is_changed(
-            input_molecular_content=input_molecular_content,
-            output_filename=output_filename,
-            processing_type=processing_type,
-            _alchem_node_id=_alchem_node_id
-        )
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 示例2: 输入节点 - 分子分析器 (对比standard_molecular_node.py)
+# 示例1: 输入节点 - 分子分析器 (对比standard_molecular_node.py)
 # ═════════════════════════════════════════════════════════════════════════════
 
 class SimpleMolecularAnalyzer(MolstarDisplayMixin):
@@ -429,57 +233,7 @@ class SimpleMolecularAnalyzer(MolstarDisplayMixin):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# 示例3: 工厂函数模式 - 快速原型节点
-# ═════════════════════════════════════════════════════════════════════════════
-
-def simple_processing_logic(content: str, metadata: dict) -> str:
-    """简单的处理逻辑：统计信息"""
-    lines = content.split('\n')
-    atom_count = len([line for line in lines if line.startswith('ATOM')])
-    
-    return f"""🔧 快速处理结果:
-使用工厂函数创建的节点
-- 原子数: {atom_count}
-- 总行数: {len(lines)}
-- 格式: {metadata.get('format_name', 'Unknown')}
-- 处理时间: {time.strftime('%H:%M:%S')}
-
-🚀 工厂函数优势：
-- 零样板代码
-- 函数式编程风格
-- 快速原型开发"""
-
-# 使用工厂函数创建节点类
-QuickProcessorNode = create_molstar_node_class(
-    class_name="QuickProcessorNode", 
-    processing_function=simple_processing_logic,
-    category="🧪 ALCHEM/Examples with Mixin"
-)
-
-"""
-🧪⚡ 工厂函数节点说明 - QuickProcessorNode
-
-📋 节点类型: 输入源节点 (自动生成模式)
-📥 输入模式: 文件名输入 (molecular_file) - 自动配置
-📤 输出模式: 处理结果 + 调试信息
-🔗 工作流位置: 快速原型和测试用途
-
-💡 特点:
-- 零代码节点定义，只需写业务逻辑函数
-- 自动继承MolstarDisplayMixin的所有功能
-- 自动配置3D显示和IS_CHANGED
-- 适合快速原型开发和功能验证
-
-🚀 使用场景:
-- 快速验证分子处理逻辑
-- 原型开发和概念验证
-- 简单的分子数据统计分析
-- 学习和测试Mixin功能
-"""
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# 示例4: 简化版test_tab_aware_processing - 使用新的内容输入模式
+# 示例2: 中间节点 - Tab感知处理器 (完整功能展示)
 # ═════════════════════════════════════════════════════════════════════════════
 
 class SimpleTabAwareProcessor(MolstarDisplayMixin):
@@ -632,7 +386,7 @@ class SimpleTabAwareProcessor(MolstarDisplayMixin):
 # ═════════════════════════════════════════════════════════════════════════════
 
 """
-🎯 四种节点开发模式总结:
+🎯 两种节点开发模式总结:
 
 1️⃣ 输入节点 (SimpleMolecularAnalyzer)
    - 用途: 工作流起点，上传分子文件
@@ -640,19 +394,7 @@ class SimpleTabAwareProcessor(MolstarDisplayMixin):
    - 配置: cls.get_molstar_input_config()
    - 数据获取: self.get_molecular_data()
 
-2️⃣ 中间节点-简化版 (SimpleMolecularEditor)  
-   - 用途: 内容处理，简单业务逻辑
-   - 输入: input_molecular_content (内容)
-   - 配置: cls.get_processing_input_config()
-   - 处理: self.process_direct_content()
-
-3️⃣ 工厂函数节点 (QuickProcessorNode)
-   - 用途: 快速原型，零样板代码
-   - 输入: molecular_file (自动配置)
-   - 创建: create_molstar_node_class()
-   - 特点: 只需写处理函数，其他自动生成
-
-4️⃣ 中间节点-完整版 (SimpleTabAwareProcessor)
+2️⃣ 中间节点-完整版 (SimpleTabAwareProcessor)
    - 用途: 复杂处理，完整功能展示
    - 输入: input_molecular_content (内容)
    - 特点: 展示Mixin的全部能力
@@ -660,9 +402,7 @@ class SimpleTabAwareProcessor(MolstarDisplayMixin):
 
 💡 选择指南:
 - 🔸 上传节点 → 使用模式1
-- 🔸 简单处理 → 使用模式2  
-- 🔸 快速原型 → 使用模式3
-- 🔸 复杂处理 → 使用模式4
+- 🔸 复杂处理 → 使用模式2
 
 🚀 所有模式都自动获得:
 ✅ 3D显示功能 (molstar_3d_display)
@@ -678,15 +418,11 @@ class SimpleTabAwareProcessor(MolstarDisplayMixin):
 # ═════════════════════════════════════════════════════════════════════════════
 
 NODE_CLASS_MAPPINGS = {
-    "SimpleMolecularEditor": SimpleMolecularEditor,
     "SimpleMolecularAnalyzer": SimpleMolecularAnalyzer,
-    "QuickProcessorNode": QuickProcessorNode,
     "SimpleTabAwareProcessor": SimpleTabAwareProcessor,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "SimpleMolecularEditor": "🧪✂️ Simple Editor (中间节点-简化版)",
     "SimpleMolecularAnalyzer": "🧪📊 Simple Analyzer (输入节点)", 
-    "QuickProcessorNode": "🧪⚡ Quick Processor (工厂函数)",
     "SimpleTabAwareProcessor": "🧪⚡ Tab-Aware Processor (中间节点-完整版)",
 }
