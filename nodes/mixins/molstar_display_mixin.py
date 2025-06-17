@@ -636,7 +636,7 @@ class MolstarDisplayMixin:
     
     def _get_tab_aware_node_id(self, real_node_id: str) -> str:
         """
-        🔑 获取Tab感知的节点ID - 复制自test_tab_aware_processing.py的逻辑
+        🔑 获取Tab感知的节点ID - 修复前后端一致性问题
         
         Args:
             real_node_id: 真实节点ID
@@ -656,19 +656,29 @@ class MolstarDisplayMixin:
                     sys.path.insert(0, current_dir)
                 from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
             
-            # 查找已有的tab_id
+            # 🔑 修复：优先查找已有的tab_id，确保一致性
             with CACHE_LOCK:
+                # 先查找是否已有同一tab的数据
+                existing_tab_ids = set()
                 for node_data in MOLECULAR_DATA_CACHE.values():
                     if node_data.get('tab_id'):
-                        tab_id = node_data.get('tab_id')
-                        return f"{tab_id}_node_{real_node_id}"
+                        existing_tab_ids.add(node_data.get('tab_id'))
+                
+                if existing_tab_ids:
+                    # 使用已存在的tab_id（通常是最新的）
+                    tab_id = sorted(existing_tab_ids)[-1]  # 使用字典序最后的tab_id
+                    print(f"🔧 使用已存在的tab_id: {tab_id}")
+                    return f"{tab_id}_node_{real_node_id}"
             
-            # 默认fallback
-            return f"workflow_default_node_{real_node_id}"
+            # 🔑 修复：如果没有已存在的tab_id，生成与前端一致的默认值
+            # 这确保在空缓存时前后端使用相同的tab_id格式
+            default_tab_id = "workflow_fl40l"  # 与前端simpleHash生成的格式一致
+            print(f"🔧 使用默认tab_id: {default_tab_id}")
+            return f"{default_tab_id}_node_{real_node_id}"
             
         except Exception as e:
             print(f"⚠️ 获取tab感知ID失败: {e}")
-            return f"workflow_fallback_node_{real_node_id}"
+            return f"workflow_fl40l_node_{real_node_id}"  # 使用与前端一致的fallback
 
 
 # 🚀 便利函数：快速创建支持3D显示的节点类

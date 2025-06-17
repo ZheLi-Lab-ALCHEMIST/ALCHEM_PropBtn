@@ -118,44 +118,15 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
                     metadata.update(cache_metadata)
                     return content, metadata
             
-            # 🎯 优先级2: tab_id + 文件名匹配
-            if current_tab_id:
-                for cached_node in cache_status.get('nodes', []):
-                    if (cached_node.get('filename') == filename and 
-                        cached_node.get('tab_id') == current_tab_id):
-                        
-                        source_node_id = cached_node.get('node_id')
-                        logger.debug(f"🔄 Tab匹配找到内存缓存: {filename} (节点 {source_node_id}, tab {current_tab_id})")
-                        
-                        source_data = get_molecular_data(source_node_id)
-                        if source_data and 'content' in source_data:
-                            content = source_data['content']
-                            
-                            # 更新元数据
-                            metadata.update({
-                                "source": "memory_cache_tab_match",
-                                "source_node_id": source_node_id,
-                                "cached_at": source_data.get('cached_at'),
-                                "file_size": len(content),
-                                "success": True,
-                                "tab_id": current_tab_id
-                            })
-                            
-                            # 添加缓存的分析结果
-                            cache_metadata = {
-                                "format": source_data.get('format'),
-                                "format_name": source_data.get('format_name'),
-                                "atoms": source_data.get('atoms'),
-                                "file_stats": source_data.get('file_stats')
-                            }
-                            metadata.update(cache_metadata)
-                            
-                            logger.info(f"✅ Tab匹配获取分子数据成功: {filename}")
-                            logger.debug(f"   来源节点: {source_node_id}")
-                            logger.debug(f"   tab_id: {current_tab_id}")
-                            logger.debug(f"   内容长度: {len(content)} 字符")
-                            
-                            return content, metadata
+            # 🔑 修复：移除有问题的Tab+文件名匹配逻辑
+            # 问题：当多个节点使用相同文件名时，Tab匹配会找到错误的节点数据
+            # 解决：严格按节点ID匹配，禁止文件名回退查找，确保数据隔离
+            
+            logger.warning(f"[DEBUG] 精确节点ID匹配失败，不使用Tab+文件名匹配避免数据混乱:")
+            logger.warning(f"  - 请求的节点ID: '{node_id}'")
+            logger.warning(f"  - 请求的文件名: '{filename}'")
+            logger.warning(f"  - Tab ID: '{current_tab_id}'")
+            logger.warning(f"  - 原因: 多节点相同文件名会导致数据错乱")
             
             # 🔑 严格节点ID绑定：移除简单文件名匹配，避免不同节点间数据混乱
             # 当多个节点使用相同output_filename时，文件名匹配会导致数据错乱

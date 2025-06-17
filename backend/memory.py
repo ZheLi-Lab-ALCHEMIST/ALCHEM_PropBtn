@@ -132,9 +132,9 @@ class MolecularDataManager:
                 logger.molecular(f"  - 当前缓存中的所有keys: {list(MOLECULAR_DATA_CACHE.keys())}")
                 logger.molecular(f"  - 缓存大小: {len(MOLECULAR_DATA_CACHE)}")
                 
-                # 尝试保存到文件系统（用于持久化）
+                # 🔑 修复：保存到文件系统时传递节点ID，避免重名文件覆盖
                 try:
-                    cls._save_to_filesystem(filename, folder, content)
+                    cls._save_to_filesystem(filename, folder, content, node_id)
                 except Exception as e:
                     logger.warning(f"文件系统保存失败: {e}")
                 
@@ -436,8 +436,16 @@ class MolecularDataManager:
             return 0
     
     @staticmethod
-    def _save_to_filesystem(filename: str, folder: str, content: str):
-        """保存到文件系统（简化版本）"""
+    def _save_to_filesystem(filename: str, folder: str, content: str, node_id: str = None):
+        """
+        保存到文件系统（修复版本） - 添加节点ID避免重名文件冲突
+        
+        Args:
+            filename: 原始文件名
+            folder: 存储文件夹
+            content: 文件内容
+            node_id: 节点ID，用于生成唯一文件名
+        """
         try:
             # 获取ComfyUI的input目录
             input_dir = folder_paths.get_input_directory()
@@ -446,8 +454,29 @@ class MolecularDataManager:
             # 确保目录存在
             os.makedirs(target_dir, exist_ok=True)
             
-            # 写入文件
-            file_path = os.path.join(target_dir, filename)
+            # 🔑 修复：为重名文件添加节点ID后缀，避免覆盖
+            if node_id:
+                # 分离文件名和扩展名
+                name_parts = filename.rsplit('.', 1)
+                if len(name_parts) == 2:
+                    name, ext = name_parts
+                    # 提取节点数字部分作为后缀
+                    node_suffix = node_id.split('_node_')[-1] if '_node_' in node_id else node_id[-3:]
+                    unique_filename = f"{name}_node{node_suffix}.{ext}"
+                else:
+                    # 没有扩展名的情况
+                    node_suffix = node_id.split('_node_')[-1] if '_node_' in node_id else node_id[-3:]
+                    unique_filename = f"{filename}_node{node_suffix}"
+                
+                logger.storage(f"[DEBUG] 文件重名保护:")
+                logger.storage(f"  - 原始文件名: {filename}")
+                logger.storage(f"  - 节点ID: {node_id}")
+                logger.storage(f"  - 唯一文件名: {unique_filename}")
+            else:
+                unique_filename = filename
+            
+            # 写入文件（使用唯一文件名）
+            file_path = os.path.join(target_dir, unique_filename)
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
                 
