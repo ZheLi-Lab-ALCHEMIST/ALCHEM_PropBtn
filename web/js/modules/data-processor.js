@@ -87,6 +87,8 @@ export class MolecularDataProcessor {
     }
     
     // 通过文件名查找分子数据
+    // ⚠️ 警告：此函数可能导致节点数据混乱，当多个节点使用相同文件名时
+    // 🔑 已从3D显示流程中移除，仅保留用于特殊调试场景
     async findMolecularDataByFilename(filename) {
         try {
             

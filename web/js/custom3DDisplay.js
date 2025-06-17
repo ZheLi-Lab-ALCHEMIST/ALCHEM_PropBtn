@@ -224,16 +224,11 @@ export const show3DMolecularView = async (node, inputName) => {
                 molecularData = backendData.data;
                 isFromBackend = true;
             } else {
-                // 备选方案：根据文件名查找数据
-                if (selectedFile && selectedFile !== 'benzene') {
-                    const filenameData = await dataProcessor.findMolecularDataByFilename(selectedFile);
-                    if (filenameData && filenameData.success) {
-                        molecularData = filenameData.data;
-                        isFromBackend = true;
-                    }
-                }
+                // 🔑 严格节点ID绑定：移除文件名回退逻辑，避免数据混乱
+                console.warn(`⚠️ 节点 ${nodeId} 的数据不存在，不使用文件名回退避免数据混乱`);
             }
         } catch (error) {
+            console.error(`❌ 获取节点 ${nodeId} 数据失败:`, error);
         }
         
         // 步骤2：回退到前端内存（兼容性）

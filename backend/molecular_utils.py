@@ -151,42 +151,12 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
                             
                             return content, metadata
             
-            # 🎯 优先级3: 简单文件名匹配（回退方案）
-            for cached_node in cache_status.get('nodes', []):
-                if cached_node.get('filename') == filename:
-                    source_node_id = cached_node.get('node_id')
-                    logger.debug(f"🔄 文件名匹配找到内存缓存: {filename} (节点 {source_node_id})")
-                    
-                    source_data = get_molecular_data(source_node_id)
-                    if source_data and 'content' in source_data:
-                        content = source_data['content']
-                        
-                        # 更新元数据
-                        metadata.update({
-                            "source": "memory_cache_filename_only",
-                            "source_node_id": source_node_id,
-                            "cached_at": source_data.get('cached_at'),
-                            "file_size": len(content),
-                            "success": True,
-                            "tab_id": source_data.get('tab_id')
-                        })
-                        
-                        # 添加缓存的分析结果
-                        cache_metadata = {
-                            "format": source_data.get('format'),
-                            "format_name": source_data.get('format_name'),
-                            "atoms": source_data.get('atoms'),
-                            "file_stats": source_data.get('file_stats')
-                        }
-                        metadata.update(cache_metadata)
-                        
-                        logger.info(f"✅ 文件名匹配获取分子数据成功: {filename}")
-                        logger.debug(f"   来源节点: {source_node_id}")
-                        logger.debug(f"   内容长度: {len(content)} 字符")
-                        
-                        return content, metadata
-                        
-            logger.debug(f"⚠️ 内存中未找到文件: {filename}")
+            # 🔑 严格节点ID绑定：移除简单文件名匹配，避免不同节点间数据混乱
+            # 当多个节点使用相同output_filename时，文件名匹配会导致数据错乱
+            logger.warning(f"⚠️ 文件名 {filename} 未在精确匹配或Tab匹配中找到，跳过文件名回退查找避免数据混乱")
+            logger.debug(f"   当前节点ID: {node_id}")
+            logger.debug(f"   当前Tab ID: {current_tab_id}")
+            logger.debug(f"   请确保节点已正确执行并存储数据")
             
         except Exception as memory_error:
             logger.warning(f"🚨 内存数据获取失败: {memory_error}")
