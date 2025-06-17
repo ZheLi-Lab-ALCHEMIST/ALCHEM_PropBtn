@@ -74,72 +74,55 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
         # 步骤3：输入是文件名，尝试从内存获取
         filename = str(input_value).strip()
         content = None
+        memory_error = None
         
-        try:
-            from .memory import get_cache_status, get_molecular_data
-            
-            # 🔑 改进的内存查找策略，支持tab_id匹配
-            cache_status = get_cache_status()
-            logger.debug(f"🧠 内存缓存状态: {cache_status.get('total_nodes', 0)} 个节点")
-            
-            # 🎯 提取当前节点的tab_id（如果node_id可用）
-            current_tab_id = None
-            if node_id and "_node_" in node_id:
-                current_tab_id = node_id.split("_node_")[0]
-                logger.debug(f"[DEBUG] 解析node_id格式:")
-                logger.debug(f"  - 完整node_id: '{node_id}'")
-                logger.debug(f"  - 提取的tab_id: '{current_tab_id}'")
-                logger.debug(f"  - 节点编号部分: '{node_id.split('_node_')[1] if len(node_id.split('_node_')) > 1 else 'None'}")
-            
-            # 🎯 优先级1: 精确匹配（完整node_id匹配）
-            if node_id and node_id in [node.get('node_id') for node in cache_status.get('nodes', [])]:
+        # 🎯 简化的内存查找：仅精确节点ID匹配
+        if node_id:
+            try:
+                from .memory import get_molecular_data
+                
                 source_data = get_molecular_data(node_id)
-                if source_data and 'content' in source_data and source_data.get('filename') == filename:
-                    content = source_data['content']
-                    logger.info(f"✅ 精确匹配获取分子数据: {filename} (节点 {node_id})")
+                if source_data and 'content' in source_data:
+                    # 检查文件名是否匹配（可选验证）
+                    cached_filename = source_data.get('filename', '')
+                    if cached_filename == filename or not cached_filename:
+                        content = source_data['content']
+                        logger.info(f"✅ 内存获取成功: {filename} (节点 {node_id})")
+                        
+                        # 更新元数据
+                        metadata.update({
+                            "source": "memory_cache",
+                            "source_node_id": node_id,
+                            "file_size": len(content),
+                            "success": True,
+                            "format": source_data.get('format'),
+                            "format_name": source_data.get('format_name'),
+                            "atoms": source_data.get('atoms'),
+                            "cached_at": source_data.get('cached_at')
+                        })
+                        
+                        # 分析内容并合并元数据
+                        content_metadata = _analyze_molecular_content(content)
+                        metadata.update(content_metadata)
+                        
+                        return content, metadata
+                    else:
+                        logger.warning(f"文件名不匹配: 请求'{filename}' vs 缓存'{cached_filename}'")
+                        memory_error = f"文件名不匹配: 请求'{filename}' vs 缓存'{cached_filename}'"
+                else:
+                    logger.debug(f"节点 {node_id} 在内存中无数据")
+                    memory_error = f"节点 {node_id} 在内存中无数据"
                     
-                    # 更新元数据
-                    metadata.update({
-                        "source": "memory_cache_exact",
-                        "source_node_id": node_id,
-                        "cached_at": source_data.get('cached_at'),
-                        "file_size": len(content),
-                        "success": True,
-                        "tab_id": source_data.get('tab_id')
-                    })
-                    
-                    # 添加缓存的分析结果
-                    cache_metadata = {
-                        "format": source_data.get('format'),
-                        "format_name": source_data.get('format_name'),
-                        "atoms": source_data.get('atoms'),
-                        "file_stats": source_data.get('file_stats')
-                    }
-                    metadata.update(cache_metadata)
-                    return content, metadata
+            except Exception as e:
+                logger.warning(f"内存数据获取失败: {e}")
+                memory_error = str(e)
+        else:
+            logger.debug("未提供节点ID，跳过内存查找")
+            memory_error = "未提供节点ID"
             
-            # 🔑 修复：移除有问题的Tab+文件名匹配逻辑
-            # 问题：当多个节点使用相同文件名时，Tab匹配会找到错误的节点数据
-            # 解决：严格按节点ID匹配，禁止文件名回退查找，确保数据隔离
-            
-            logger.warning(f"[DEBUG] 精确节点ID匹配失败，不使用Tab+文件名匹配避免数据混乱:")
-            logger.warning(f"  - 请求的节点ID: '{node_id}'")
-            logger.warning(f"  - 请求的文件名: '{filename}'")
-            logger.warning(f"  - Tab ID: '{current_tab_id}'")
-            logger.warning(f"  - 原因: 多节点相同文件名会导致数据错乱")
-            
-            # 🔑 严格节点ID绑定：移除简单文件名匹配，避免不同节点间数据混乱
-            # 当多个节点使用相同output_filename时，文件名匹配会导致数据错乱
-            logger.warning(f"[DEBUG] 未找到匹配的缓存数据:")
-            logger.warning(f"  - 查找的文件名: '{filename}'")
-            logger.warning(f"  - 当前节点ID: '{node_id}'")
-            logger.warning(f"  - 当前Tab ID: '{current_tab_id}'")
-            logger.warning(f"  - 缓存中的所有节点: {[node.get('node_id') for node in cache_status.get('nodes', [])]}")
-            logger.warning(f"  - 跳过文件名回退查找避免数据混乱")
-            
-        except Exception as memory_error:
-            logger.warning(f"🚨 内存数据获取失败: {memory_error}")
-            metadata["memory_error"] = str(memory_error)
+        # 记录内存查找失败的原因
+        if memory_error:
+            metadata["memory_error"] = memory_error
         
         # 步骤4：如果内存没有数据，尝试从文件系统读取
         if fallback_to_file:
@@ -184,25 +167,37 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
                 logger.warning(f"🚨 文件系统读取失败: {file_error}")
                 metadata["file_error"] = str(file_error)
         
-        # 步骤5：所有方法都失败了
-        error_msg = f"无法获取分子数据: {filename}"
+        # 步骤5：所有获取方法都失败，生成明确的错误信息
+        error_details = []
+        if memory_error:
+            error_details.append(f"内存: {memory_error}")
+        if metadata.get("file_error"):
+            error_details.append(f"文件系统: {metadata['file_error']}")
+        if not fallback_to_file:
+            error_details.append("文件系统回退被禁用")
+            
+        error_msg = f"无法获取分子数据 '{filename}'"
+        if error_details:
+            error_msg += f" - {'; '.join(error_details)}"
+            
         logger.error(f"❌ {error_msg}")
         
         metadata.update({
-            "source": "none",
+            "source": "failed",
             "success": False,
-            "error": error_msg
+            "error": error_msg,
+            "attempted_sources": ["memory"] + (["file_system"] if fallback_to_file else [])
         })
         
         return input_value, metadata  # 返回原始输入
         
     except Exception as e:
-        logger.exception(f"🚨 分子数据获取过程中发生异常: {e}")
+        logger.exception(f"🚨 分子数据获取异常: {e}")
         
         error_metadata = {
             "node_id": node_id or "unknown",
             "success": False,
-            "error": str(e),
+            "error": f"处理异常: {str(e)}",
             "source": "exception"
         }
         

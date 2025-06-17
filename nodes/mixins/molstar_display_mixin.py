@@ -221,12 +221,17 @@ class MolstarDisplayMixin:
             return content, metadata
             
         except Exception as e:
-            # 创建错误元数据
+            # 创建详细的错误元数据
+            node_id = kwargs.get('_alchem_node_id', 'unknown')
+            logger.error(f"MolstarDisplayMixin.get_molecular_data 异常: {e}", exc_info=True)
+            
             error_metadata = {
                 'success': False,
-                'error': f'数据获取异常: {str(e)}',
-                'source': 'error',
-                'node_id': kwargs.get('_alchem_node_id', 'unknown')
+                'error': f'分子数据获取失败: {type(e).__name__}: {str(e)}',
+                'source': 'mixin_error',
+                'node_id': node_id,
+                'error_type': type(e).__name__,
+                'input_value': str(input_value)[:100]  # 限制长度
             }
             return str(input_value), error_metadata
     
@@ -315,8 +320,26 @@ class MolstarDisplayMixin:
             return (processed_content, processing_report, debug_info)
             
         except Exception as e:
-            error_report = f"❌ 处理异常: {str(e)}"
-            debug_info = self.generate_debug_info(node_id, {'success': False, 'error': str(e)})
+            logger.error(f"MolstarDisplayMixin.process_direct_content 异常: {e}", exc_info=True)
+            
+            error_report = f"""❌ 分子内容处理失败
+
+错误类型: {type(e).__name__}
+错误信息: {str(e)}
+节点ID: {node_id}
+输出文件: {output_filename}
+
+🔧 请检查:
+1. 处理函数是否正确
+2. 输入内容格式是否有效
+3. 处理参数是否合理"""
+            
+            debug_info = self.generate_debug_info(node_id, {
+                'success': False, 
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'processing_function': getattr(processing_func, '__name__', 'unknown')
+            })
             return (content, error_report, debug_info)
     
     def validate_molecular_data(self, metadata: Dict[str, Any]) -> bool:
@@ -465,7 +488,14 @@ class MolstarDisplayMixin:
             return "\n".join(debug_lines)
             
         except Exception as e:
-            return f"调试信息生成失败: {str(e)}"
+            logger.error(f"MolstarDisplayMixin.generate_debug_info 异常: {e}", exc_info=True)
+            return f"""🔍 === 调试信息生成失败 ===
+节点ID: {node_id}
+错误类型: {type(e).__name__}
+错误信息: {str(e)}
+时间戳: {time.strftime('%H:%M:%S')}
+
+请检查内存模块导入是否正常"""
     
     def process_molecular_content(
         self, 
@@ -544,9 +574,14 @@ class MolstarDisplayMixin:
             return result or {}
             
         except Exception as e:
+            logger.error(f"MolstarDisplayMixin.store_processed_data 异常: {e}", exc_info=True)
             return {
                 'success': False,
-                'error': f'存储失败: {str(e)}'
+                'error': f'分子数据存储失败: {type(e).__name__}: {str(e)}',
+                'error_type': type(e).__name__,
+                'node_id': node_id,
+                'filename': filename,
+                'attempted_folder': folder
             }
     
     @classmethod
