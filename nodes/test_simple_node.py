@@ -1,6 +1,9 @@
 """
 🧪 简洁的分子上传和3D显示测试节点 - 正确的架构实现
 
+⚠️ DEPRECATED - 此节点已废弃，请使用 MolstarDisplayMixin 架构创建新节点
+   参考 nodes/examples_with_mixin.py 获取现代化的实现方式
+
 这个节点展示了正确的数据流架构：
 1. 节点只定义输入输出，不做内存管理
 2. execution_hook自动拦截get_input_data，从后端内存获取数据  
@@ -66,7 +69,7 @@ class SimpleUploadAndDisplayTestNode:
             # 🔑 关键：如果是upload节点，先同步tab_id到CACHE
             if _alchem_node_id and "_node_" in _alchem_node_id:
                 try:
-                    from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+                    from ALCHEM_PropBtn.backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
                     
                     tab_id = _alchem_node_id.split("_node_")[0]
                     print(f"🔑 upload节点执行时同步tab_id: {tab_id} -> {_alchem_node_id}")
@@ -83,7 +86,7 @@ class SimpleUploadAndDisplayTestNode:
                     print(f"⚠️ tab_id同步失败，但不影响执行: {sync_error}")
             
             # 🎯 使用新的工具函数获取分子数据
-            from ..backend.molecular_utils import get_molecular_content
+            from ALCHEM_PropBtn.backend.molecular_utils import get_molecular_content
             
             print(f"🔍 原始输入: {molecular_file}")
             

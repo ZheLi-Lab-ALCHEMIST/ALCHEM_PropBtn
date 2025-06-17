@@ -1,6 +1,9 @@
 """
 🧪 标准化分子节点模板 (standard_molecular_node.py)
 
+⚠️ DEPRECATED - 此节点已废弃，请使用 MolstarDisplayMixin 架构创建新节点
+   参考 nodes/examples_with_mixin.py 获取现代化的实现方式
+
 ═══════════════════════════════════════════════════════════════════════════════
                             分子节点开发完整指南
 ═══════════════════════════════════════════════════════════════════════════════
@@ -116,7 +119,7 @@ def INPUT_TYPES(cls):
 ```python
 def your_function(self, molecular_file, other_params):
     # 🎯 必须：使用工具获取分子数据
-    from ..backend.molecular_utils import get_molecular_content
+    from ALCHEM_PropBtn.backend.molecular_utils import get_molecular_content
     
     content, metadata = get_molecular_content(molecular_file)
     
@@ -286,7 +289,7 @@ class StandardMolecularAnalysisNode:
         """
         try:
             # 🎯 步骤1：使用工具函数获取分子数据
-            from ..backend.molecular_utils import get_molecular_content
+            from ALCHEM_PropBtn.backend.molecular_utils import get_molecular_content
             
             content, metadata = get_molecular_content(
                 input_value=molecular_file,

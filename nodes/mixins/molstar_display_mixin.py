@@ -196,17 +196,8 @@ class MolstarDisplayMixin:
             (content, metadata) 元组
         """
         try:
-            # 尝试相对导入，失败则使用绝对导入
-            try:
-                from ...backend.molecular_utils import get_molecular_content
-            except ImportError:
-                import sys
-                import os
-                # 添加项目根目录到Python路径
-                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                from backend.molecular_utils import get_molecular_content
+            # 使用统一的绝对导入
+            from ALCHEM_PropBtn.backend.molecular_utils import get_molecular_content
             
             node_id = kwargs.get('_alchem_node_id', '')
             
@@ -399,16 +390,8 @@ class MolstarDisplayMixin:
             格式化的调试信息字符串
         """
         try:
-            # 尝试相对导入，失败则使用绝对导入
-            try:
-                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
-            except ImportError:
-                import sys
-                import os
-                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            # 使用统一的绝对导入
+            from ALCHEM_PropBtn.backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
             
             debug_lines = [
                 "🔍 === MolstarDisplayMixin调试信息 ===",
@@ -548,16 +531,8 @@ class MolstarDisplayMixin:
         print(f"  - filename: '{filename}'")
         print(f"  - content长度: {len(content)}")
         try:
-            # 尝试相对导入，失败则使用绝对导入  
-            try:
-                from ...backend.memory import store_molecular_data
-            except ImportError:
-                import sys
-                import os
-                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                from backend.memory import store_molecular_data
+            # 使用统一的绝对导入
+            from ALCHEM_PropBtn.backend.memory import store_molecular_data
             
             result = store_molecular_data(
                 node_id=node_id,
@@ -645,16 +620,8 @@ class MolstarDisplayMixin:
             Tab感知的存储ID
         """
         try:
-            # 尝试相对导入，失败则使用绝对导入
-            try:
-                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
-            except ImportError:
-                import sys
-                import os
-                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            # 使用统一的绝对导入
+            from ALCHEM_PropBtn.backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
             
             # 🔑 修复：优先查找已有的tab_id，确保一致性
             with CACHE_LOCK:

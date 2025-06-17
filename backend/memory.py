@@ -17,22 +17,10 @@ from .logging_config import get_memory_logger
 # 初始化统一Logger
 logger = get_memory_logger()
 
-# 尝试导入WebSocket通知功能
-try:
-    from .websocket_server import notify_molecular_update, notify_molecular_edit, notify_molecular_delete
-    WEBSOCKET_NOTIFY_AVAILABLE = True
-    logger.success("WebSocket通知功能加载成功")
-except ImportError as e:
-    WEBSOCKET_NOTIFY_AVAILABLE = False
-    logger.warning(f"WebSocket通知功能不可用 - {e}")
-    
-    # 创建空的异步通知函数，避免代码报错
-    async def notify_molecular_update(node_id, data):
-        pass
-    async def notify_molecular_edit(node_id, data):
-        pass
-    async def notify_molecular_delete(node_id):
-        pass
+# 导入WebSocket通知功能
+from .websocket_server import notify_molecular_update, notify_molecular_edit, notify_molecular_delete
+WEBSOCKET_NOTIFY_AVAILABLE = True
+logger.success("WebSocket通知功能加载成功")
 
 # 全局分子数据缓存 - 简化版本
 MOLECULAR_DATA_CACHE: Dict[str, Dict[str, Any]] = {}

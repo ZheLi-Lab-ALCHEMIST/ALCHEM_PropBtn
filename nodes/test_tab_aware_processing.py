@@ -1,6 +1,8 @@
 """
 🧪 Tab感知的分子处理节点测试
 
+⚠️ DEPRECATED - 此节点已废弃，请使用 MolstarDisplayMixin 架构创建新节点
+
 这个测试节点展示了改进后的内存管理系统：
 1. 接收上游分子数据（文件名或内容）
 2. 进行简单的数据处理（删除氢原子、分子居中等）
@@ -69,7 +71,7 @@ class TabAwareProcessingNode:
         处理分子数据 - 展示tab感知的中间处理节点
         """
         try:
-            from ..backend.memory import store_molecular_data
+            from ALCHEM_PropBtn.backend.memory import store_molecular_data
             
             print(f"🔧 Tab感知处理节点开始执行")
             print(f"   输入长度: {len(input_molecular_content)}, 处理类型: {processing_type}")
@@ -271,7 +273,7 @@ class TabAwareProcessingNode:
     
     def _get_tab_id(self, real_node_id):
         """简化的tab_id获取"""
-        from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+        from ALCHEM_PropBtn.backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
         
         with CACHE_LOCK:
             for node_data in MOLECULAR_DATA_CACHE.values():
@@ -285,7 +287,7 @@ class TabAwareProcessingNode:
     def _generate_storage_debug_info(self, storage_node_id, result_data):
         """简化的存储调试信息"""
         try:
-            from ..backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            from ALCHEM_PropBtn.backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
             
             debug_lines = [
                 "🔧 === 处理节点存储调试 ===",

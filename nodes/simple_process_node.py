@@ -1,6 +1,8 @@
 """
 🧪 简化分子处理节点
 
+⚠️ DEPRECATED - 此节点已废弃，请使用 MolstarDisplayMixin 架构创建新节点
+
 这是一个简化版本的处理节点，专注于功能验证：
 1. 接收分子内容进行处理
 2. 简单的ID生成策略
@@ -90,7 +92,7 @@ class SimpleMolecularProcessNode:
             
             # 存储到内存以支持3D显示
             try:
-                from ..backend.memory import store_molecular_data
+                from ALCHEM_PropBtn.backend.memory import store_molecular_data
                 
                 # 生成简单的存储ID
                 storage_id = f"simple_process_{int(time.time()) % 1000000}"
