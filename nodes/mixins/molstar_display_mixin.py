@@ -85,6 +85,9 @@ class MolstarDisplayMixin:
         custom_config: Optional[Dict] = None
     ) -> Dict[str, Tuple]:
         """
+        🔑 生成标准化的Molstar input配置 - 文件名输入模式
+        """
+        """
         🔑 生成标准化的Molstar input配置
         
         Args:
@@ -123,6 +126,57 @@ class MolstarDisplayMixin:
             param_name: ("STRING", config),
             "_alchem_node_id": ("STRING", {"default": ""})  # 隐藏参数
         }
+    
+    @classmethod
+    def get_processing_input_config(
+        cls,
+        content_param: str = "input_molecular_content", 
+        output_param: str = "output_filename",
+        enable_3d_display: bool = True,
+        custom_config: Optional[Dict] = None
+    ) -> Dict[str, Tuple]:
+        """
+        🔄 生成处理节点的input配置 - 内容输入模式
+        
+        专为中间处理节点设计：
+        - 接收上游节点的内容输入
+        - 输出文件名支持3D显示
+        - 适用于 test_tab_aware_processing.py 这类节点
+        
+        Args:
+            content_param: 内容输入参数名
+            output_param: 输出文件名参数名
+            enable_3d_display: 是否启用3D显示
+            custom_config: 自定义配置
+            
+        Returns:
+            处理节点的INPUT_TYPES配置
+        """
+        config = {
+            # 内容输入 - 来自上游节点
+            content_param: ("STRING", {
+                "multiline": True,
+                "default": "",
+                "tooltip": "输入的分子文件内容（来自上游节点）"
+            }),
+            # 隐藏的节点ID参数
+            "_alchem_node_id": ("STRING", {"default": ""})
+        }
+        
+        # 输出文件名配置
+        output_config = {"default": "processed_molecule.pdb"}
+        
+        if enable_3d_display:
+            output_config.update(cls.DEFAULT_MOLSTAR_CONFIG)
+            output_config["tooltip"] = "处理后的文件名 - 支持3D显示"
+        
+        # 应用自定义配置
+        if custom_config and 'output_config' in custom_config:
+            output_config.update(custom_config['output_config'])
+        
+        config[output_param] = ("STRING", output_config)
+        
+        return config
     
     def get_molecular_data(
         self, 
@@ -173,6 +227,91 @@ class MolstarDisplayMixin:
                 'node_id': kwargs.get('_alchem_node_id', 'unknown')
             }
             return str(input_value), error_metadata
+    
+    def process_direct_content(
+        self,
+        content: str,
+        output_filename: str,
+        node_id: str,
+        processing_func: callable,
+        **processing_params
+    ) -> Tuple[str, str, str]:
+        """
+        🔄 处理直接内容输入的简化流程
+        
+        专为中间处理节点设计，简化test_tab_aware_processing.py的实现
+        
+        Args:
+            content: 直接输入的分子内容
+            output_filename: 输出文件名  
+            node_id: 节点ID
+            processing_func: 处理函数 (content, **params) -> processed_content
+            **processing_params: 处理参数
+            
+        Returns:
+            (processed_content, processing_report, debug_info)
+        """
+        try:
+            # 🔑 修复：确保节点ID正确
+            if not node_id:
+                # 如果没有传入节点ID，尝试获取
+                node_id = self._get_current_node_id()
+            
+            print(f"🔧 process_direct_content: 节点ID = {node_id}")
+            
+            # 验证输入内容
+            if not content or len(content.strip()) < 10:
+                error_report = "❌ 输入内容为空或过短"
+                debug_info = self.generate_debug_info(node_id, {'success': False, 'error': '输入内容无效'})
+                return ("", error_report, debug_info)
+            
+            # 执行处理
+            processed_content = processing_func(content, **processing_params)
+            
+            if not processed_content:
+                error_report = "❌ 处理失败，无输出内容"
+                debug_info = self.generate_debug_info(node_id, {'success': False, 'error': '处理失败'})
+                return (content, error_report, debug_info)
+            
+            # 存储处理结果供3D显示使用
+            store_result = self.store_processed_data(processed_content, output_filename, node_id)
+            
+            # 生成处理报告
+            input_atoms = len([l for l in content.split('\n') if l.startswith(('ATOM', 'HETATM'))])
+            output_atoms = len([l for l in processed_content.split('\n') if l.startswith(('ATOM', 'HETATM'))])
+            
+            processing_report = f"""✅ 处理完成 (使用MolstarDisplayMixin)
+
+🔧 处理信息:
+- 输入原子数: {input_atoms}
+- 输出原子数: {output_atoms}
+- 输出文件: {output_filename}
+- 存储状态: {'✓' if store_result.get('success') else '✗'}
+
+🎯 架构优势:
+- ✅ 直接内容处理模式
+- ✅ 3D显示零配置启用  
+- ✅ 简化的处理流程
+- ✅ 标准化错误处理
+
+🚀 3D显示就绪: {output_filename}"""
+            
+            # 生成调试信息
+            metadata = {
+                'success': True,
+                'source': 'direct_input',
+                'atoms': output_atoms,
+                'format_name': 'PDB',  # 简化假设
+                'total_lines': len(processed_content.split('\n'))
+            }
+            debug_info = self.generate_debug_info(node_id, metadata)
+            
+            return (processed_content, processing_report, debug_info)
+            
+        except Exception as e:
+            error_report = f"❌ 处理异常: {str(e)}"
+            debug_info = self.generate_debug_info(node_id, {'success': False, 'error': str(e)})
+            return (content, error_report, debug_info)
     
     def validate_molecular_data(self, metadata: Dict[str, Any]) -> bool:
         """
@@ -444,6 +583,72 @@ class MolstarDisplayMixin:
         content = f"{param_str}_{time.time()}"
         
         return hashlib.md5(content.encode()).hexdigest()
+    
+    def _get_current_node_id(self) -> str:
+        """
+        🔑 获取当前节点ID - 复制自test_tab_aware_processing.py的逻辑
+        
+        Returns:
+            节点ID字符串
+        """
+        try:
+            import inspect
+            
+            # 尝试从调用栈获取节点ID
+            for frame_info in inspect.stack():
+                frame_locals = frame_info.frame.f_locals
+                if 'unique_id' in frame_locals:
+                    real_node_id = str(frame_locals['unique_id'])
+                    
+                    # 尝试获取tab感知的节点ID
+                    tab_aware_node_id = self._get_tab_aware_node_id(real_node_id)
+                    print(f"🎯 获取节点ID: {real_node_id} -> {tab_aware_node_id}")
+                    return tab_aware_node_id
+                    
+            # 如果找不到，生成临时ID
+            fallback_id = f"temp_node_{int(time.time()) % 100000}"
+            print(f"⚠️ 未找到节点ID，使用回退方案: {fallback_id}")
+            return fallback_id
+            
+        except Exception as e:
+            print(f"❌ 获取节点ID失败: {e}")
+            return f"error_node_{int(time.time()) % 100000}"
+    
+    def _get_tab_aware_node_id(self, real_node_id: str) -> str:
+        """
+        🔑 获取Tab感知的节点ID - 复制自test_tab_aware_processing.py的逻辑
+        
+        Args:
+            real_node_id: 真实节点ID
+            
+        Returns:
+            Tab感知的存储ID
+        """
+        try:
+            # 尝试相对导入，失败则使用绝对导入
+            try:
+                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            except ImportError:
+                import sys
+                import os
+                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                if current_dir not in sys.path:
+                    sys.path.insert(0, current_dir)
+                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            
+            # 查找已有的tab_id
+            with CACHE_LOCK:
+                for node_data in MOLECULAR_DATA_CACHE.values():
+                    if node_data.get('tab_id'):
+                        tab_id = node_data.get('tab_id')
+                        return f"{tab_id}_node_{real_node_id}"
+            
+            # 默认fallback
+            return f"workflow_default_node_{real_node_id}"
+            
+        except Exception as e:
+            print(f"⚠️ 获取tab感知ID失败: {e}")
+            return f"workflow_fallback_node_{real_node_id}"
 
 
 # 🚀 便利函数：快速创建支持3D显示的节点类
