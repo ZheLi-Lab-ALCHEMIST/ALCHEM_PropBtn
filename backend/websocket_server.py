@@ -266,21 +266,15 @@ def get_websocket_manager() -> WebSocketManager:
     """获取WebSocket管理器实例"""
     return ws_manager
 
-# 便捷函数
-def notify_molecular_update(node_id: str, molecular_data: Dict[str, Any]):
+# 便捷函数 - 修改为返回协程而不是task
+async def notify_molecular_update(node_id: str, molecular_data: Dict[str, Any]):
     """便捷函数：通知分子数据更新"""
-    return asyncio.create_task(notify_molecular_data_change(
-        node_id, 'update', molecular_data
-    ))
+    await notify_molecular_data_change(node_id, 'update', molecular_data)
 
-def notify_molecular_edit(node_id: str, edit_info: Dict[str, Any]):
+async def notify_molecular_edit(node_id: str, edit_info: Dict[str, Any]):
     """便捷函数：通知分子数据编辑"""
-    return asyncio.create_task(notify_molecular_data_change(
-        node_id, 'edit', edit_info
-    ))
+    await notify_molecular_data_change(node_id, 'edit', edit_info)
 
-def notify_molecular_delete(node_id: str):
+async def notify_molecular_delete(node_id: str):
     """便捷函数：通知分子数据删除"""
-    return asyncio.create_task(notify_molecular_data_change(
-        node_id, 'delete', {}
-    ))
+    await notify_molecular_data_change(node_id, 'delete', {})

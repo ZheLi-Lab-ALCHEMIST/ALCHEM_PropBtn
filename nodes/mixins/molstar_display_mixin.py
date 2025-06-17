@@ -216,6 +216,11 @@ class MolstarDisplayMixin:
             print(f"  - node_id类型: {type(node_id)}")
             print(f"  - kwargs keys: {list(kwargs.keys())}")
             
+            # 🔑 修复：如果node_id为空，尝试获取当前节点ID
+            if not node_id:
+                node_id = self._get_current_node_id()
+                print(f"[DEBUG] 自动获取的node_id: '{node_id}'")
+            
             content, metadata = get_molecular_content(
                 input_value=input_value,
                 node_id=node_id,

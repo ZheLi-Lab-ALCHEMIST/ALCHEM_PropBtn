@@ -26,12 +26,12 @@ except ImportError as e:
     WEBSOCKET_NOTIFY_AVAILABLE = False
     logger.warning(f"WebSocket通知功能不可用 - {e}")
     
-    # 创建空的通知函数，避免代码报错
-    def notify_molecular_update(node_id, data):
+    # 创建空的异步通知函数，避免代码报错
+    async def notify_molecular_update(node_id, data):
         pass
-    def notify_molecular_edit(node_id, data):
+    async def notify_molecular_edit(node_id, data):
         pass
-    def notify_molecular_delete(node_id):
+    async def notify_molecular_delete(node_id):
         pass
 
 # 全局分子数据缓存 - 简化版本
@@ -140,28 +140,39 @@ class MolecularDataManager:
                 
                 logger.success(f"[DEBUG] 分子数据存储成功: {filename} -> 节点 {node_id}")
                 
-                # 🚀 发送WebSocket通知（安全调用）
+                # 🚀 发送WebSocket通知（改进的安全调用）
                 if WEBSOCKET_NOTIFY_AVAILABLE:
                     try:
-                        # 安全的异步调用，避免event loop警告
+                        # 使用线程池执行异步通知
                         import asyncio
-                        try:
-                            loop = asyncio.get_event_loop()
-                            if loop.is_running():
-                                # 如果有运行中的事件循环，创建task
-                                asyncio.create_task(notify_molecular_update(node_id, molecular_data))
-                            else:
-                                # 如果没有运行中的循环，直接运行
+                        import concurrent.futures
+                        import threading
+                        
+                        def run_async_notify():
+                            """在新线程中运行异步通知"""
+                            # 创建新的事件循环
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            try:
+                                # 运行异步函数
                                 loop.run_until_complete(notify_molecular_update(node_id, molecular_data))
-                            logger.network(f"[DEBUG] WebSocket更新通知已发送:")
-                            logger.network(f"  - 节点ID: '{node_id}'")
-                            logger.network(f"  - 通知类型: 'update'")
-                            logger.network(f"  - 文件名: {molecular_data.get('filename')}")
-                        except RuntimeError:
-                            # 如果没有事件循环，跳过WebSocket通知
-                            logger.debug(f"跳过WebSocket通知（无事件循环）: 节点 {node_id}")
+                                logger.network(f"[DEBUG] WebSocket更新通知发送成功")
+                            finally:
+                                loop.close()
+                        
+                        # 在新线程中执行
+                        thread = threading.Thread(target=run_async_notify, daemon=True)
+                        thread.start()
+                        
+                        logger.network(f"[DEBUG] WebSocket更新通知详情:")
+                        logger.network(f"  - 节点ID: '{node_id}'")
+                        logger.network(f"  - 通知类型: 'update'")
+                        logger.network(f"  - 文件名: {molecular_data.get('filename')}")
+                        
                     except Exception as e:
-                        logger.debug(f"WebSocket通知跳过: {e}")
+                        logger.error(f"WebSocket通知失败: {e}")
+                        import traceback
+                        traceback.print_exc()
                 
                 return molecular_data
                 
@@ -297,7 +308,7 @@ class MolecularDataManager:
                         
                         logger.success(f"编辑成功: 节点 {node_id} 删除最后一个原子")
                         
-                        # 🚀 发送WebSocket编辑通知（安全调用）
+                        # 🚀 发送WebSocket编辑通知（改进的安全调用）
                         if WEBSOCKET_NOTIFY_AVAILABLE:
                             try:
                                 edit_info = {
@@ -306,22 +317,36 @@ class MolecularDataManager:
                                     "atoms_count": molecular_data["atoms"],
                                     "timestamp": time.time()
                                 }
-                                # 安全的异步调用
+                                
+                                # 使用线程池执行异步通知
                                 import asyncio
-                                try:
-                                    loop = asyncio.get_event_loop()
-                                    if loop.is_running():
-                                        asyncio.create_task(notify_molecular_edit(node_id, edit_info))
-                                    else:
+                                import threading
+                                
+                                def run_async_notify():
+                                    """在新线程中运行异步通知"""
+                                    # 创建新的事件循环
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    try:
+                                        # 运行异步函数
                                         loop.run_until_complete(notify_molecular_edit(node_id, edit_info))
-                                    logger.network(f"[DEBUG] WebSocket编辑通知已发送:")
-                                    logger.network(f"  - 节点ID: '{node_id}'")
-                                    logger.network(f"  - 通知类型: 'edit'")
-                                    logger.network(f"  - 编辑类型: {edit_type}")
-                                except RuntimeError:
-                                    logger.debug(f"跳过WebSocket编辑通知（无事件循环）: 节点 {node_id}")
+                                        logger.network(f"[DEBUG] WebSocket编辑通知发送成功")
+                                    finally:
+                                        loop.close()
+                                
+                                # 在新线程中执行
+                                thread = threading.Thread(target=run_async_notify, daemon=True)
+                                thread.start()
+                                
+                                logger.network(f"[DEBUG] WebSocket编辑通知详情:")
+                                logger.network(f"  - 节点ID: '{node_id}'")
+                                logger.network(f"  - 通知类型: 'edit'")
+                                logger.network(f"  - 编辑类型: {edit_type}")
+                                
                             except Exception as e:
-                                logger.debug(f"WebSocket编辑通知跳过: {e}")
+                                logger.error(f"WebSocket编辑通知失败: {e}")
+                                import traceback
+                                traceback.print_exc()
                         
                         return molecular_data
                     else:
