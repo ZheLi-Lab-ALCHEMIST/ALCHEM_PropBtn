@@ -289,6 +289,9 @@ export class ALCHEM3DPanelManager {
         this.menuButton = null;
         this.isInitialized = false;
         
+        // 🔑 追踪当前显示的节点ID
+        this.currentDisplayNodeId = null;
+        
         // MolStar相关属性
         this.molstarAvailable = false;
         this.molstarViewer = null;
@@ -607,6 +610,17 @@ export class ALCHEM3DPanelManager {
     // 获取当前显示状态
     isShowing() {
         return this.isVisible;
+    }
+    
+    // 🔑 设置当前显示的节点ID
+    setCurrentDisplayNodeId(nodeId) {
+        this.currentDisplayNodeId = nodeId;
+        console.log(`🔧 面板管理器：设置当前显示节点ID = ${nodeId}`);
+    }
+    
+    // 🔑 获取当前显示的节点ID  
+    getCurrentDisplayNodeId() {
+        return this.currentDisplayNodeId;
     }
     
     // 获取MolStar状态

@@ -110,24 +110,33 @@ class ALCHEM3DDisplayCoordinator {
         console.log(`🧪 收到分子数据变更: 节点 ${node_id}, 类型 ${change_type}`);
         
         try {
-            // 如果当前面板正在显示该节点的数据，则自动刷新
+            // 🔑 关键修复：检查当前显示的是否是发生变更的节点
             if (this.panelManager && this.panelManager.isVisible) {
-                console.log("🔄 自动刷新Molstar显示...");
+                // 获取当前显示的节点ID
+                const currentDisplayNodeId = this.panelManager.getCurrentDisplayNodeId();
                 
-                // 获取最新的分子数据
-                const backendData = await this.dataProcessor.fetchMolecularDataFromBackend(node_id);
-                
-                if (backendData && backendData.success) {
-                    const molecularData = backendData.data;
+                if (currentDisplayNodeId === node_id) {
+                    console.log(`🔄 自动刷新Molstar显示: 节点 ${node_id} (${change_type})`);
                     
-                    // 直接更新Molstar显示
-                    if (molecularData.content) {
-                        this.panelManager.displayData(molecularData.content);
-                        console.log(`✅ Molstar已更新: ${molecularData.filename} (${molecularData.atoms} 原子)`);
+                    // 获取最新的分子数据
+                    const backendData = await this.dataProcessor.fetchMolecularDataFromBackend(node_id);
+                    
+                    if (backendData && backendData.success) {
+                        const molecularData = backendData.data;
+                        
+                        // 直接更新Molstar显示
+                        if (molecularData.content) {
+                            this.panelManager.displayData(molecularData.content);
+                            console.log(`✅ Molstar已更新: ${molecularData.filename} (${molecularData.atoms} 原子)`);
+                        }
+                    } else {
+                        console.warn("⚠️ 获取最新分子数据失败");
                     }
                 } else {
-                    console.warn("⚠️ 获取最新分子数据失败");
+                    console.log(`📝 节点 ${node_id} 数据变更，但当前显示的是节点 ${currentDisplayNodeId}，跳过刷新`);
                 }
+            } else {
+                console.log(`📝 节点 ${node_id} 数据变更，但Molstar面板未显示，跳过刷新`);
             }
             
         } catch (error) {
@@ -208,6 +217,9 @@ export const show3DMolecularView = async (node, inputName) => {
         
         // 🚀 订阅该节点的WebSocket更新
         alchem3DCoordinator.subscribeNodeUpdates(nodeId);
+        
+        // 🔑 设置当前显示的节点ID
+        panelManager.setCurrentDisplayNodeId(nodeId);
         
         // 显示面板
         panelManager.showPanel();
