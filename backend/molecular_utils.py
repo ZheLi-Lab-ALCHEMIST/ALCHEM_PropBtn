@@ -52,9 +52,12 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
             "success": False
         }
         
-        logger.debug(f"🔍 分子数据获取 - 节点ID: {node_id}")
-        logger.debug(f"   输入类型: {content_type}")
-        logger.debug(f"   是否文件名: {is_filename}")
+        logger.debug(f"[DEBUG] 分子数据获取开始:")
+        logger.debug(f"  - 原始node_id: '{node_id}'")
+        logger.debug(f"  - node_id类型: {type(node_id)}")
+        logger.debug(f"  - 输入值前30字符: '{input_value[:30]}...'")
+        logger.debug(f"  - 输入类型: {content_type}")
+        logger.debug(f"  - 是否文件名: {is_filename}")
         
         # 步骤2：如果输入已经是内容，直接返回
         if not is_filename:
@@ -83,7 +86,10 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
             current_tab_id = None
             if node_id and "_node_" in node_id:
                 current_tab_id = node_id.split("_node_")[0]
-                logger.debug(f"🔑 当前节点tab_id: {current_tab_id}")
+                logger.debug(f"[DEBUG] 解析node_id格式:")
+                logger.debug(f"  - 完整node_id: '{node_id}'")
+                logger.debug(f"  - 提取的tab_id: '{current_tab_id}'")
+                logger.debug(f"  - 节点编号部分: '{node_id.split('_node_')[1] if len(node_id.split('_node_')) > 1 else 'None'}")
             
             # 🎯 优先级1: 精确匹配（完整node_id匹配）
             if node_id and node_id in [node.get('node_id') for node in cache_status.get('nodes', [])]:
@@ -153,10 +159,12 @@ def get_molecular_content(input_value: str, node_id: Optional[str] = None, fallb
             
             # 🔑 严格节点ID绑定：移除简单文件名匹配，避免不同节点间数据混乱
             # 当多个节点使用相同output_filename时，文件名匹配会导致数据错乱
-            logger.warning(f"⚠️ 文件名 {filename} 未在精确匹配或Tab匹配中找到，跳过文件名回退查找避免数据混乱")
-            logger.debug(f"   当前节点ID: {node_id}")
-            logger.debug(f"   当前Tab ID: {current_tab_id}")
-            logger.debug(f"   请确保节点已正确执行并存储数据")
+            logger.warning(f"[DEBUG] 未找到匹配的缓存数据:")
+            logger.warning(f"  - 查找的文件名: '{filename}'")
+            logger.warning(f"  - 当前节点ID: '{node_id}'")
+            logger.warning(f"  - 当前Tab ID: '{current_tab_id}'")
+            logger.warning(f"  - 缓存中的所有节点: {[node.get('node_id') for node in cache_status.get('nodes', [])]}")
+            logger.warning(f"  - 跳过文件名回退查找避免数据混乱")
             
         except Exception as memory_error:
             logger.warning(f"🚨 内存数据获取失败: {memory_error}")

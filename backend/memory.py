@@ -78,7 +78,12 @@ class MolecularDataManager:
                     logger.error("存储失败：文件内容不能为空")
                     return None
                 
-                logger.molecular(f"存储分子数据: 节点{node_id}, 文件{filename}")
+                # 🔍 调试日志：追踪节点ID格式
+                logger.molecular(f"[DEBUG] 存储分子数据开始:")
+                logger.molecular(f"  - 原始node_id: '{node_id}'")
+                logger.molecular(f"  - node_id类型: {type(node_id)}")
+                logger.molecular(f"  - node_id长度: {len(node_id)}")
+                logger.molecular(f"  - 文件名: {filename}")
                 
                 # 检测基本格式信息
                 file_format = cls._detect_format(filename)
@@ -87,7 +92,11 @@ class MolecularDataManager:
                 tab_id = None
                 if "_node_" in node_id:
                     tab_id = node_id.split("_node_")[0]  # 例如: "workflow_fl40l5"
-                    logger.molecular(f"提取tab_id: {tab_id} <- {node_id}")
+                    logger.molecular(f"[DEBUG] 解析node_id:")
+                    logger.molecular(f"  - 提取的tab_id: '{tab_id}'")
+                    logger.molecular(f"  - 分割后的节点部分: '{node_id.split('_node_')[1] if len(node_id.split('_node_')) > 1 else 'None'}")
+                else:
+                    logger.warning(f"[DEBUG] node_id格式异常，未包含'_node_': '{node_id}'")
                 
                 # 创建存储数据结构
                 molecular_data = {
@@ -117,13 +126,19 @@ class MolecularDataManager:
                 # 保存到全局缓存
                 MOLECULAR_DATA_CACHE[node_id] = molecular_data
                 
+                # 🔍 调试日志：验证存储
+                logger.molecular(f"[DEBUG] 数据已存储到缓存:")
+                logger.molecular(f"  - 缓存key: '{node_id}'")
+                logger.molecular(f"  - 当前缓存中的所有keys: {list(MOLECULAR_DATA_CACHE.keys())}")
+                logger.molecular(f"  - 缓存大小: {len(MOLECULAR_DATA_CACHE)}")
+                
                 # 尝试保存到文件系统（用于持久化）
                 try:
                     cls._save_to_filesystem(filename, folder, content)
                 except Exception as e:
                     logger.warning(f"文件系统保存失败: {e}")
                 
-                logger.success(f"分子数据存储成功: {filename} -> 节点 {node_id}")
+                logger.success(f"[DEBUG] 分子数据存储成功: {filename} -> 节点 {node_id}")
                 
                 # 🚀 发送WebSocket通知（安全调用）
                 if WEBSOCKET_NOTIFY_AVAILABLE:
@@ -138,7 +153,10 @@ class MolecularDataManager:
                             else:
                                 # 如果没有运行中的循环，直接运行
                                 loop.run_until_complete(notify_molecular_update(node_id, molecular_data))
-                            logger.network(f"已发送WebSocket更新通知: 节点 {node_id}")
+                            logger.network(f"[DEBUG] WebSocket更新通知已发送:")
+                            logger.network(f"  - 节点ID: '{node_id}'")
+                            logger.network(f"  - 通知类型: 'update'")
+                            logger.network(f"  - 文件名: {molecular_data.get('filename')}")
                         except RuntimeError:
                             # 如果没有事件循环，跳过WebSocket通知
                             logger.debug(f"跳过WebSocket通知（无事件循环）: 节点 {node_id}")
@@ -164,6 +182,11 @@ class MolecularDataManager:
         """
         with CACHE_LOCK:
             try:
+                # 🔍 调试日志：追踪数据获取
+                logger.debug(f"[DEBUG] 获取分子数据:")
+                logger.debug(f"  - 请求的node_id: '{node_id}'")
+                logger.debug(f"  - 缓存中的keys: {list(MOLECULAR_DATA_CACHE.keys())}")
+                
                 if node_id in MOLECULAR_DATA_CACHE:
                     data = MOLECULAR_DATA_CACHE[node_id]
                     
@@ -171,10 +194,14 @@ class MolecularDataManager:
                     data["last_accessed"] = time.time()
                     data["access_count"] = data.get("access_count", 0) + 1
                     
-                    logger.debug(f"获取分子数据: 节点{node_id}, 文件{data.get('filename')}")
+                    logger.debug(f"[DEBUG] 找到数据:")
+                    logger.debug(f"  - 文件名: {data.get('filename')}")
+                    logger.debug(f"  - tab_id: {data.get('tab_id')}")
+                    logger.debug(f"  - 访问次数: {data.get('access_count')}")
                     return data
                 else:
-                    logger.debug(f"节点 {node_id} 的数据不存在")
+                    logger.warning(f"[DEBUG] 节点 '{node_id}' 的数据不存在!")
+                    logger.warning(f"  - 可用的keys: {list(MOLECULAR_DATA_CACHE.keys())}")
                     return None
                     
             except Exception as e:
@@ -237,8 +264,10 @@ class MolecularDataManager:
         with CACHE_LOCK:
             try:
                 # 🔧 调试：显示缓存中的所有节点ID
-                logger.debug(f"尝试编辑节点: {node_id}")
-                logger.debug(f"缓存中的节点ID列表: {list(MOLECULAR_DATA_CACHE.keys())}")
+                logger.debug(f"[DEBUG] 编辑分子数据:")
+                logger.debug(f"  - 目标node_id: '{node_id}'")
+                logger.debug(f"  - 编辑类型: {edit_type}")
+                logger.debug(f"  - 缓存中的节点ID列表: {list(MOLECULAR_DATA_CACHE.keys())}")
                 
                 if node_id not in MOLECULAR_DATA_CACHE:
                     logger.warning(f"节点 {node_id} 的数据不存在，无法编辑")
@@ -285,7 +314,10 @@ class MolecularDataManager:
                                         asyncio.create_task(notify_molecular_edit(node_id, edit_info))
                                     else:
                                         loop.run_until_complete(notify_molecular_edit(node_id, edit_info))
-                                    logger.network(f"已发送WebSocket编辑通知: 节点 {node_id}")
+                                    logger.network(f"[DEBUG] WebSocket编辑通知已发送:")
+                                    logger.network(f"  - 节点ID: '{node_id}'")
+                                    logger.network(f"  - 通知类型: 'edit'")
+                                    logger.network(f"  - 编辑类型: {edit_type}")
                                 except RuntimeError:
                                     logger.debug(f"跳过WebSocket编辑通知（无事件循环）: 节点 {node_id}")
                             except Exception as e:

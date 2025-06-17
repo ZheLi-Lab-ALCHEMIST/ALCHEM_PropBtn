@@ -210,6 +210,12 @@ class MolstarDisplayMixin:
             
             node_id = kwargs.get('_alchem_node_id', '')
             
+            # 🔍 调试日志
+            print(f"[DEBUG] MolstarDisplayMixin.get_molecular_data:")
+            print(f"  - 传入的node_id: '{node_id}'")
+            print(f"  - node_id类型: {type(node_id)}")
+            print(f"  - kwargs keys: {list(kwargs.keys())}")
+            
             content, metadata = get_molecular_content(
                 input_value=input_value,
                 node_id=node_id,
@@ -257,7 +263,11 @@ class MolstarDisplayMixin:
                 # 如果没有传入节点ID，尝试获取
                 node_id = self._get_current_node_id()
             
-            print(f"🔧 process_direct_content: 节点ID = {node_id}")
+            print(f"[DEBUG] MolstarDisplayMixin.process_direct_content:")
+            print(f"  - 原始node_id: '{node_id}'")
+            print(f"  - node_id类型: {type(node_id)}")
+            print(f"  - output_filename: '{output_filename}'")
+            print(f"  - processing_params: {processing_params}")
             
             # 验证输入内容
             if not content or len(content.strip()) < 10:
@@ -527,6 +537,11 @@ class MolstarDisplayMixin:
         Returns:
             存储结果元数据
         """
+        print(f"[DEBUG] MolstarDisplayMixin.store_processed_data:")
+        print(f"  - 存储的node_id: '{node_id}'")
+        print(f"  - node_id类型: {type(node_id)}")
+        print(f"  - filename: '{filename}'")
+        print(f"  - content长度: {len(content)}")
         try:
             # 尝试相对导入，失败则使用绝对导入  
             try:

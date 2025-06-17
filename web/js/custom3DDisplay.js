@@ -107,7 +107,11 @@ class ALCHEM3DDisplayCoordinator {
     async handleMolecularDataChange(message) {
         const { node_id, change_type, data, timestamp } = message;
         
-        console.log(`🧪 收到分子数据变更: 节点 ${node_id}, 类型 ${change_type}`);
+        console.log(`[DEBUG] 收到WebSocket分子数据变更消息:`);
+        console.log(`  - 节点ID: '${node_id}'`);
+        console.log(`  - 变更类型: ${change_type}`);
+        console.log(`  - 时间戳: ${timestamp}`);
+        console.log(`  - 数据文件名: ${data?.filename || 'N/A'}`);
         
         try {
             // 🔑 关键修复：检查当前显示的是否是发生变更的节点
@@ -115,8 +119,13 @@ class ALCHEM3DDisplayCoordinator {
                 // 获取当前显示的节点ID
                 const currentDisplayNodeId = this.panelManager.getCurrentDisplayNodeId();
                 
+                console.log(`[DEBUG] 节点ID匹配检查:`);
+                console.log(`  - 当前显示的节点ID: '${currentDisplayNodeId}'`);
+                console.log(`  - 收到变更的节点ID: '${node_id}'`);
+                console.log(`  - ID匹配: ${currentDisplayNodeId === node_id}`);
+                
                 if (currentDisplayNodeId === node_id) {
-                    console.log(`🔄 自动刷新Molstar显示: 节点 ${node_id} (${change_type})`);
+                    console.log(`[DEBUG] 节点ID匹配，开始自动刷新Molstar`);
                     
                     // 获取最新的分子数据
                     const backendData = await this.dataProcessor.fetchMolecularDataFromBackend(node_id);
@@ -215,6 +224,12 @@ export const show3DMolecularView = async (node, inputName) => {
         // 生成唯一节点ID
         const nodeId = dataProcessor.generateUniqueNodeId(node);
         
+        console.log(`[DEBUG] show3DMolecularView:`);
+        console.log(`  - 生成的节点ID: '${nodeId}'`);
+        console.log(`  - 节点对象ID: ${node.id}`);
+        console.log(`  - 输入名称: ${inputName}`);
+        console.log(`  - 文件名: ${selectedFile}`);
+        
         // 🚀 订阅该节点的WebSocket更新
         alchem3DCoordinator.subscribeNodeUpdates(nodeId);
         
@@ -282,20 +297,25 @@ export const show3DMolecularView = async (node, inputName) => {
 // 🧪 执行分子数据编辑
 export const editMolecularData = async (node, inputName, editType) => {
     try {
-        console.log(`🧪 开始编辑分子数据: 节点 ${node.id}, 类型 ${editType}`);
+        console.log(`[DEBUG] editMolecularData开始:`);
+        console.log(`  - 节点ID: ${node.id}`);
+        console.log(`  - 输入名称: ${inputName}`);
+        console.log(`  - 编辑类型: ${editType}`);
         
         // 🔑 关键修复：查找实际存储数据的节点ID
         const dataProcessor = alchem3DCoordinator.getDataProcessor();
         const currentNodeId = dataProcessor.generateUniqueNodeId(node);
+        
+        console.log(`[DEBUG] 编辑操作节点ID处理:`);
+        console.log(`  - 生成的唯一节点ID: '${currentNodeId}'`);
+        console.log(`  - 节点对象ID: ${node.id}`);
         
         // 首先尝试使用当前节点ID
         let targetNodeId = currentNodeId;
         
         // 🔑 修复：严格使用当前节点ID，不允许按文件名查找
         // 这确保每个节点的编辑功能只操作自己的数据
-        console.log(`🎯 编辑操作严格绑定到节点ID: ${currentNodeId}`);
-        
-        console.log(`🔧 编辑使用的节点ID: ${targetNodeId}`);
+        console.log(`[DEBUG] 严格节点ID绑定: 编辑操作将使用节点ID '${targetNodeId}'`);
         
         // 调用后端编辑API
         const response = await fetch('/alchem_propbtn/api/molecular', {

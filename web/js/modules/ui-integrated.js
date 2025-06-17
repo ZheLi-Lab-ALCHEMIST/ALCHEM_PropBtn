@@ -615,11 +615,17 @@ export class ALCHEM3DPanelManager {
     // 🔑 设置当前显示的节点ID
     setCurrentDisplayNodeId(nodeId) {
         this.currentDisplayNodeId = nodeId;
-        console.log(`🔧 面板管理器：设置当前显示节点ID = ${nodeId}`);
+        console.log(`[DEBUG] setCurrentDisplayNodeId:`);
+        console.log(`  - 设置的节点ID: '${nodeId}'`);
+        console.log(`  - 节点ID类型: ${typeof nodeId}`);
+        console.log(`  - 之前的节点ID: '${this.currentDisplayNodeId || 'none'}'`);
     }
     
     // 🔑 获取当前显示的节点ID  
     getCurrentDisplayNodeId() {
+        console.log(`[DEBUG] getCurrentDisplayNodeId:`);
+        console.log(`  - 返回的节点ID: '${this.currentDisplayNodeId}'`);
+        console.log(`  - 节点ID类型: ${typeof this.currentDisplayNodeId}`);
         return this.currentDisplayNodeId;
     }
     

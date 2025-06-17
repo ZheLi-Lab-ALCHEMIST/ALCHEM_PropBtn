@@ -237,7 +237,12 @@ async def notify_molecular_data_change(node_id: str, change_type: str, data: Dic
             subscribers.append(ws)
     
     if subscribers:
-        logger.info(f"🧪 通知 {len(subscribers)} 个订阅者：节点 {node_id} 的分子数据发生 {change_type}")
+        logger.info(f"[DEBUG] WebSocket通知详情:")
+        logger.info(f"  - 节点ID: '{node_id}'")
+        logger.info(f"  - 变更类型: {change_type}")
+        logger.info(f"  - 订阅者数量: {len(subscribers)}")
+        logger.info(f"  - 数据文件名: {data.get('filename', 'N/A')}")
+        logger.info(f"  - 消息时间戳: {message['timestamp']}")
         
         # 并发发送给所有订阅者
         tasks = [ws_manager.send_to_client(ws, message) for ws in subscribers]

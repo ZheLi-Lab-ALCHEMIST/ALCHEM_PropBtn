@@ -241,7 +241,13 @@ export class MolecularDataProcessor {
         // 🎯 简化的节点ID生成策略：直接使用tab_id + node_id
         // 格式: workflow_fl40l5_node_23 (去掉hash后缀)
         const simpleNodeId = `${tabId}_node_${node.id}`;
-        console.log(`🔧 节点ID生成: ${node.id} → ${simpleNodeId} (simplified)`);
+        
+        console.log(`[DEBUG] generateUniqueNodeId:`);
+        console.log(`  - 节点ID: ${node.id}`);
+        console.log(`  - 节点类型: ${node.type}`);
+        console.log(`  - Tab ID: '${tabId}'`);
+        console.log(`  - 最终唯一ID: '${simpleNodeId}'`);
+        
         return simpleNodeId;
     }
     
