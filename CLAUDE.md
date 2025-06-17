@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 用中文回答我。
 每次都用审视的目光，仔公看我输入的潜在问题，你要指出我的问题，并给出明显在我思考框架之外的建议。
 不要过度设计，专注于实现功能。
+除非非常必要，不要随便设计回退方案，因为这是维护的噩梦，bug的源泉。
+
 
 ## Project Overview
 ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件处理和3D可视化。项目采用方案B架构（节点主动数据获取模式），提供上传按钮和3D显示功能，并集成WebSocket实时同步功能。

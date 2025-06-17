@@ -48,6 +48,15 @@ try:
 except ImportError as e:
     logger.warning(f"简化处理节点导入失败: {e}")
 
+# 导入Mixin示例节点
+try:
+    from .nodes.examples_with_mixin import NODE_CLASS_MAPPINGS as MIXIN_EXAMPLES_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as MIXIN_EXAMPLES_DISPLAY_MAPPINGS
+    NODE_CLASS_MAPPINGS.update(MIXIN_EXAMPLES_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(MIXIN_EXAMPLES_DISPLAY_MAPPINGS)
+    logger.success("Mixin示例节点加载成功 - 新架构演示")
+except ImportError as e:
+    logger.warning(f"Mixin示例节点导入失败: {e}")
+
 logger.molecular(f"总共加载了 {len(NODE_CLASS_MAPPINGS)} 个节点")
 
 # ====================================================================================================

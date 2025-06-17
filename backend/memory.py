@@ -446,6 +446,7 @@ class MolecularDataManager:
         except Exception as e:
             logger.error(f"删除原子失败: {e}")
             return content  # 返回原始内容
+    
 
 
 # ====================================================================================================
