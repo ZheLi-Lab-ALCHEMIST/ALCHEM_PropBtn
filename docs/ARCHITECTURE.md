@@ -38,14 +38,16 @@ graph TB
 
 ## 🔧 核心组件
 
-### 1. MolstarDisplayMixin 统一架构
+### 1. MolstarDisplayMixin 统一架构 (成熟实现)
 
-#### 🧪 Mixin设计模式优势
-- **代码减少90%**: 从400+行简化到30-50行
+#### 🧪 Mixin设计模式优势 (基于实际代码)
+- **核心实现**: `molstar_display_mixin.py` (774行核心代码)
+- **代码减少90%**: 节点开发从400+行简化到30-50行
 - **零配置3D显示**: 一行代码启用完整功能
 - **标准化错误处理**: 统一的异常处理模板
-- **自动节点ID管理**: Tab感知的唯一ID生成
+- **自动节点ID管理**: Tab感知的唯一ID生成 
 - **严格数据隔离**: 避免重名文件数据混乱
+- **示例节点**: `examples_with_mixin.py` (427行完整演示)
 
 #### 节点定义（传统方式 vs Mixin方式）
 
@@ -366,6 +368,48 @@ async def handle_molecular_request(request):
 - **按需加载**: MolStar库按需加载
 - **虚拟化**: 大分子结构的渲染优化
 - **响应式**: 自适应不同屏幕尺寸
+
+### 4. 🧪 RDKit专业扩展 (独立模块)
+
+#### 架构特点
+- **完全隔离**: 独立的`rdkit_extension/`模块，不影响现有功能
+- **基于Mixin**: 完全基于MolstarDisplayMixin架构
+- **智能依赖**: 优雅的RDKit依赖检查和错误处理
+
+#### 核心文件
+```python
+rdkit_extension/
+├── backend/rdkit_processor.py     # RDKit核心处理器 (292行)
+├── nodes/editor_node.py           # RDKit编辑器节点 (206行)  
+└── utils/dependency_check.py      # 依赖检查 (75行)
+```
+
+#### RDKit编辑器节点 (实际实现)
+```python
+class RDKitMolecularEditor(MolstarDisplayMixin):
+    """基于Mixin的专业分子编辑器"""
+    
+    # 5种专业编辑操作
+    "edit_operation": ([
+        "add_hydrogens",        # 智能添加氢原子
+        "remove_hydrogens",     # 移除氢原子
+        "optimize_structure",   # UFF力场3D优化
+        "standardize_mol",      # 分子标准化
+        "generate_conformer"    # 构象生成
+    ])
+    
+    def edit_molecule_with_rdkit(self, **kwargs):
+        # 🔑 一行代码完成RDKit编辑流程
+        return self.process_direct_content(
+            processing_func=self._rdkit_edit_molecule,
+            # ... 参数传递
+        )
+```
+
+#### 智能格式支持 (实际实现)
+- **自动检测**: PDB、SDF、MOL、SMILES格式智能识别
+- **UFF力场**: 专业级3D结构优化和能量最小化
+- **错误处理**: 详细的RDKit安装指导和故障排除
 
 ## 🚀 扩展指南
 

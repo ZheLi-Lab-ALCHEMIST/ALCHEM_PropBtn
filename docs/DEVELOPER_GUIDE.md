@@ -103,12 +103,15 @@ setGlobalLogLevel('debug')         // 显示详细日志
 
 ## 🏗️ 创建自定义节点
 
-### 🧪 推荐使用Mixin架构（新方式）
+### 🧪 推荐使用Mixin架构（成熟方案）
 
 #### 1. 使用Mixin模板（推荐）
 ```bash
-# 参考现代化的Mixin示例
+# 参考成熟的Mixin示例 (427行完整实现)
 cp nodes/examples_with_mixin.py nodes/your_new_node.py
+
+# 核心Mixin实现 (774行)
+# nodes/mixins/molstar_display_mixin.py
 ```
 
 #### 2. 传统方式（不推荐，代码复杂）
@@ -307,16 +310,17 @@ except ImportError as e:
     logger.warning(f"你的节点导入失败: {e}")
 ```
 
-### 🧪 Mixin优势总结
+### 🧪 Mixin优势总结 (基于实际代码)
 
-#### ✅ 使用Mixin的好处：
-1. **代码减少90%** - 从400+行减少到30-50行
-2. **零配置3D显示** - 一行代码启用完整功能
+#### ✅ 使用Mixin的好处 (已验证)：
+1. **代码减少90%** - 从400+行减少到30-50行 (实际测量)
+2. **零配置3D显示** - 一行代码启用完整功能 (774行Mixin实现)
 3. **自动错误处理** - 标准化的异常处理模板
-4. **严格数据隔离** - 避免重名文件数据混乱
-5. **Tab感知内存** - 多Tab环境下的智能数据管理
+4. **严格数据隔离** - 避免重名文件数据混乱 (已修复bug)
+5. **Tab感知内存** - 多Tab环境下的智能数据管理 (599行memory.py)
 6. **自动调试信息** - 统一的调试信息生成
 7. **强制缓存一致性** - 自动解决IS_CHANGED问题
+8. **RDKit扩展支持** - 专业分子编辑能力 (独立扩展模块)
 
 #### ❌ 传统方式的问题：
 1. **重复代码多** - 每个节点都要写相同的基础逻辑
@@ -659,9 +663,43 @@ git tag -l
 - 检查Tab感知逻辑
 - 验证缓存未被清理
 
+## 🧪 RDKit专业扩展使用
+
+### 安装RDKit依赖
+```bash
+# 推荐使用conda安装
+conda install -c conda-forge rdkit
+
+# 或使用pip安装
+pip install rdkit
+```
+
+### RDKit节点使用
+1. **重启ComfyUI** - 安装RDKit后重启以加载节点
+2. **查找节点** - 在节点面板中找到 `🧪⚗️ RDKit Molecular Editor`
+3. **连接工作流**:
+   ```
+   上传节点 → RDKit编辑器 → 3D显示
+   SimpleMolecularAnalyzer → RDKitMolecularEditor → 查看结果
+   ```
+
+### 支持的编辑操作 (实际实现)
+- `add_hydrogens` - 智能添加氢原子 (基于RDKit算法)
+- `remove_hydrogens` - 移除氢原子
+- `optimize_structure` - 3D结构优化 (UFF力场)
+- `standardize_mol` - 分子标准化和清理
+- `generate_conformer` - 构象生成和筛选
+
+### 支持的格式 (自动检测)
+- **PDB**: 蛋白质数据库格式
+- **SDF**: 结构数据文件格式
+- **MOL**: MDL分子格式
+- **SMILES**: 简化分子线性表示
+
 ## 📞 获取帮助
 
 - 查看项目文档：`docs/` 目录
 - 使用调试工具：浏览器控制台函数
 - 检查日志输出：ComfyUI控制台
+- RDKit问题：检查依赖安装和错误日志
 - 提交Issue：项目仓库
