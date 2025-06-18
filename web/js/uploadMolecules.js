@@ -567,6 +567,15 @@ export const createMolecularUploadHandler = (molecularFolder, comboWidget, progr
             if (comboWidget.callback) {
                 comboWidget.callback(actualFileName);  // 🔧 修复：使用实际文件名
             }
+            
+            // 🔑 关键修复：设置节点的_alchem_node_id参数为正确的tab感知ID
+            const alchemNodeIdWidget = node.widgets?.find(w => w.name === '_alchem_node_id');
+            if (alchemNodeIdWidget) {
+                alchemNodeIdWidget.value = tabAwareNodeId;
+                console.log(`✅ 设置节点参数 _alchem_node_id = ${tabAwareNodeId}`);
+            } else {
+                console.warn(`⚠️ 未找到_alchem_node_id widget，节点执行时可能无法获取正确的tab感知ID`);
+            }
             progressBar.style.width = '100%';
             
             // 显示成功信息（双重上传完成）

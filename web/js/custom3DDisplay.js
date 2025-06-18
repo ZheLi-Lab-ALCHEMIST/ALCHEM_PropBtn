@@ -230,6 +230,15 @@ export const show3DMolecularView = async (node, inputName) => {
         console.log(`  - 输入名称: ${inputName}`);
         console.log(`  - 文件名: ${selectedFile}`);
         
+        // 🔑 关键修复：设置节点的_alchem_node_id参数为正确的tab感知ID
+        const alchemNodeIdWidget = node.widgets?.find(w => w.name === '_alchem_node_id');
+        if (alchemNodeIdWidget) {
+            alchemNodeIdWidget.value = nodeId;
+            console.log(`✅ 3D显示设置节点参数 _alchem_node_id = ${nodeId}`);
+        } else {
+            console.warn(`⚠️ 3D显示未找到_alchem_node_id widget，节点执行时可能无法获取正确的tab感知ID`);
+        }
+        
         // 🚀 订阅该节点的WebSocket更新
         alchem3DCoordinator.subscribeNodeUpdates(nodeId);
         

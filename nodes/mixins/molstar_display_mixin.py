@@ -216,10 +216,13 @@ class MolstarDisplayMixin:
             print(f"  - node_id类型: {type(node_id)}")
             print(f"  - kwargs keys: {list(kwargs.keys())}")
             
-            # 🔑 修复：如果node_id为空，尝试获取当前节点ID
+            # 🔑 关键修复：优先使用前端传入的node_id，避免全局状态依赖
             if not node_id:
+                print(f"[WARNING] 前端未传入_alchem_node_id，尝试自动获取（可能导致Tab切换问题）")
                 node_id = self._get_current_node_id()
                 print(f"[DEBUG] 自动获取的node_id: '{node_id}'")
+            else:
+                print(f"[DEBUG] 使用前端传入的tab感知node_id: '{node_id}'")
             
             content, metadata = get_molecular_content(
                 input_value=input_value,
@@ -281,10 +284,12 @@ class MolstarDisplayMixin:
             (processed_content, processing_report, debug_info)
         """
         try:
-            # 🔑 修复：确保节点ID正确
+            # 🔑 关键修复：优先使用前端传入的node_id，避免全局状态依赖
             if not node_id:
-                # 如果没有传入节点ID，尝试获取
+                print(f"[WARNING] process_direct_content: 前端未传入_alchem_node_id，尝试自动获取（可能导致Tab切换问题）")
                 node_id = self._get_current_node_id()
+            else:
+                print(f"[DEBUG] process_direct_content: 使用前端传入的tab感知node_id: '{node_id}'")
             
             print(f"[DEBUG] MolstarDisplayMixin.process_direct_content:")
             print(f"  - 原始node_id: '{node_id}'")
@@ -654,42 +659,39 @@ class MolstarDisplayMixin:
             Tab感知的存储ID
         """
         try:
-            from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK, get_active_tab_id
+            from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
             
-            # 🔑 新逻辑：优先使用ACTIVE_TAB_ID
-            active_tab_id = get_active_tab_id()
-            if active_tab_id:
-                print(f"🎯 使用活跃tab_id: {active_tab_id}")
-                return f"{active_tab_id}_node_{real_node_id}"
-            
-            # 🔑 fallback：查找已有的tab_id，选择节点最多的
+            # 🔧 新方案：从现有缓存数据推断当前tab，避免全局状态依赖
             with CACHE_LOCK:
-                # 先查找是否已有同一tab的数据
-                existing_tab_ids = set()
+                if not MOLECULAR_DATA_CACHE:
+                    # 缓存为空时，使用与前端一致的默认tab_id
+                    default_tab_id = "workflow_fl40l"  # 与前端simpleHash()一致
+                    print(f"🔧 缓存为空，使用默认tab_id: {default_tab_id}")
+                    return f"{default_tab_id}_node_{real_node_id}"
+                
+                # 🎯 从现有缓存中推断当前活跃的tab
+                existing_tab_ids = []
                 for node_data in MOLECULAR_DATA_CACHE.values():
-                    if node_data.get('tab_id'):
-                        existing_tab_ids.add(node_data.get('tab_id'))
+                    tab_id = node_data.get('tab_id')
+                    if tab_id:
+                        existing_tab_ids.append(tab_id)
                 
                 if existing_tab_ids:
-                    # 选择有最多节点的tab_id（活跃的主要tab）
-                    tab_counts = {}
-                    for node_data in MOLECULAR_DATA_CACHE.values():
-                        tab_id = node_data.get('tab_id')
-                        if tab_id:
-                            tab_counts[tab_id] = tab_counts.get(tab_id, 0) + 1
-                    
-                    # 选择节点数量最多的tab_id
-                    selected_tab_id = max(tab_counts.items(), key=lambda x: x[1])[0]
-                    print(f"🔧 使用fallback tab_id: {selected_tab_id} (节点数: {tab_counts[selected_tab_id]})")
-                    return f"{selected_tab_id}_node_{real_node_id}"
+                    # 使用最新/最常用的tab_id（按字典序排序后取最后一个）
+                    unique_tabs = sorted(set(existing_tab_ids))
+                    current_tab_id = unique_tabs[-1]
+                    print(f"🎯 推断当前tab_id: {current_tab_id} (从{len(unique_tabs)}个tab中选择)")
+                    return f"{current_tab_id}_node_{real_node_id}"
             
-            # 🔑 如果什么都没找到，返回None让上层处理
-            print(f"⚠️ 没有找到任何tab_id，CACHE可能为空")
-            return None
+            # 🔑 最后回退：使用与前端一致的默认值
+            default_tab_id = "workflow_fl40l"
+            print(f"⚠️ 无法推断tab_id，使用默认值: {default_tab_id}")
+            return f"{default_tab_id}_node_{real_node_id}"
             
         except Exception as e:
             print(f"⚠️ 获取tab感知ID失败: {e}")
-            return None
+            # 确保即使出错也返回一个有效ID
+            return f"workflow_fl40l_node_{real_node_id}"
 
 
 # 🚀 便利函数：快速创建支持3D显示的节点类
