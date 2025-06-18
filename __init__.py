@@ -57,6 +57,16 @@ try:
 except ImportError as e:
     logger.warning(f"Mixin示例节点导入失败: {e}")
 
+# 🧪⚗️ 导入RDKit扩展节点 (条件导入)
+try:
+    from .rdkit_extension.nodes import NODE_CLASS_MAPPINGS as RDKIT_MAPPINGS, NODE_DISPLAY_NAME_MAPPINGS as RDKIT_DISPLAY_MAPPINGS
+    NODE_CLASS_MAPPINGS.update(RDKIT_MAPPINGS)
+    NODE_DISPLAY_NAME_MAPPINGS.update(RDKIT_DISPLAY_MAPPINGS)
+    logger.success("🧪⚗️ RDKit扩展节点加载成功 - 专业分子编辑功能")
+except ImportError as e:
+    logger.info(f"🧪 RDKit扩展未加载: {e}")
+    logger.info("💡 安装RDKit以启用高级分子编辑功能: conda install -c conda-forge rdkit")
+
 logger.molecular(f"总共加载了 {len(NODE_CLASS_MAPPINGS)} 个节点")
 
 # ====================================================================================================

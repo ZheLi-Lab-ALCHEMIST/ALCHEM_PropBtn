@@ -227,6 +227,24 @@ class MolstarDisplayMixin:
                 fallback_to_file=fallback_to_file
             )
             
+            # 🔑 新功能：如果这是input节点（文件名输入），更新active_tab_id
+            if metadata.get('success') and metadata.get('input_type') == 'filename':
+                try:
+                    from ...backend.memory import update_active_tab_id, extract_tab_id_from_node_id
+                except ImportError:
+                    import sys
+                    import os
+                    current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                    if current_dir not in sys.path:
+                        sys.path.insert(0, current_dir)
+                    from backend.memory import update_active_tab_id, extract_tab_id_from_node_id
+                
+                # 从node_id提取tab_id并更新为活跃tab
+                tab_id = extract_tab_id_from_node_id(node_id)
+                if tab_id:
+                    update_active_tab_id(tab_id)
+                    print(f"🎯 Input节点更新活跃tab_id: {tab_id}")
+            
             return content, metadata
             
         except Exception as e:
@@ -647,16 +665,22 @@ class MolstarDisplayMixin:
         try:
             # 尝试相对导入，失败则使用绝对导入
             try:
-                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK, get_active_tab_id
             except ImportError:
                 import sys
                 import os
                 current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
                 if current_dir not in sys.path:
                     sys.path.insert(0, current_dir)
-                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK, get_active_tab_id
             
-            # 🔑 修复：优先查找已有的tab_id，确保一致性
+            # 🔑 新逻辑：优先使用ACTIVE_TAB_ID
+            active_tab_id = get_active_tab_id()
+            if active_tab_id:
+                print(f"🎯 使用活跃tab_id: {active_tab_id}")
+                return f"{active_tab_id}_node_{real_node_id}"
+            
+            # 🔑 fallback：查找已有的tab_id，选择节点最多的
             with CACHE_LOCK:
                 # 先查找是否已有同一tab的数据
                 existing_tab_ids = set()
@@ -665,20 +689,25 @@ class MolstarDisplayMixin:
                         existing_tab_ids.add(node_data.get('tab_id'))
                 
                 if existing_tab_ids:
-                    # 使用已存在的tab_id（通常是最新的）
-                    tab_id = sorted(existing_tab_ids)[-1]  # 使用字典序最后的tab_id
-                    print(f"🔧 使用已存在的tab_id: {tab_id}")
-                    return f"{tab_id}_node_{real_node_id}"
+                    # 选择有最多节点的tab_id（活跃的主要tab）
+                    tab_counts = {}
+                    for node_data in MOLECULAR_DATA_CACHE.values():
+                        tab_id = node_data.get('tab_id')
+                        if tab_id:
+                            tab_counts[tab_id] = tab_counts.get(tab_id, 0) + 1
+                    
+                    # 选择节点数量最多的tab_id
+                    selected_tab_id = max(tab_counts.items(), key=lambda x: x[1])[0]
+                    print(f"🔧 使用fallback tab_id: {selected_tab_id} (节点数: {tab_counts[selected_tab_id]})")
+                    return f"{selected_tab_id}_node_{real_node_id}"
             
-            # 🔑 修复：如果没有已存在的tab_id，生成与前端一致的默认值
-            # 这确保在空缓存时前后端使用相同的tab_id格式
-            default_tab_id = "workflow_fl40l"  # 与前端simpleHash生成的格式一致
-            print(f"🔧 使用默认tab_id: {default_tab_id}")
-            return f"{default_tab_id}_node_{real_node_id}"
+            # 🔑 如果什么都没找到，返回None让上层处理
+            print(f"⚠️ 没有找到任何tab_id，CACHE可能为空")
+            return None
             
         except Exception as e:
             print(f"⚠️ 获取tab感知ID失败: {e}")
-            return f"workflow_fl40l_node_{real_node_id}"  # 使用与前端一致的fallback
+            return None
 
 
 # 🚀 便利函数：快速创建支持3D显示的节点类

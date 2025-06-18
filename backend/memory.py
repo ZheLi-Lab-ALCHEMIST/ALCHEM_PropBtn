@@ -37,6 +37,9 @@ except ImportError as e:
 # 全局分子数据缓存 - 简化版本
 MOLECULAR_DATA_CACHE: Dict[str, Dict[str, Any]] = {}
 
+# 🔑 新增：活跃的tab_id，由input节点更新
+ACTIVE_TAB_ID: Optional[str] = None
+
 # 线程锁，确保缓存操作的线程安全
 CACHE_LOCK = threading.Lock()
 
@@ -558,3 +561,45 @@ def clear_cache(node_id: str = None):
 def edit_molecular_data(node_id: str, edit_type: str, **kwargs):
     """便捷函数 - 编辑分子数据"""
     return MolecularDataManager.edit_molecular_data(node_id, edit_type, **kwargs)
+
+
+# ====================================================================================================
+# 🔑 Active Tab ID 管理功能
+# ====================================================================================================
+
+def update_active_tab_id(tab_id: str):
+    """
+    更新活跃的tab_id
+    
+    Args:
+        tab_id: 新的活跃tab_id
+    """
+    global ACTIVE_TAB_ID
+    with CACHE_LOCK:
+        ACTIVE_TAB_ID = tab_id
+        logger.debug(f"🎯 更新活跃tab_id: {tab_id}")
+
+def get_active_tab_id() -> Optional[str]:
+    """
+    获取当前活跃的tab_id
+    
+    Returns:
+        当前活跃的tab_id，如果没有则返回None
+    """
+    global ACTIVE_TAB_ID
+    with CACHE_LOCK:
+        return ACTIVE_TAB_ID
+
+def extract_tab_id_from_node_id(node_id: str) -> Optional[str]:
+    """
+    从节点ID中提取tab_id
+    
+    Args:
+        node_id: 格式如 "workflow_nv6wm_node_6"
+        
+    Returns:
+        提取的tab_id，如 "workflow_nv6wm"
+    """
+    if '_node_' in node_id:
+        return node_id.split('_node_')[0]
+    return None
