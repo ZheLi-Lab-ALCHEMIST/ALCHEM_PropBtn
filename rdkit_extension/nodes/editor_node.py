@@ -9,39 +9,10 @@
 - 完美集成3D显示功能
 """
 
-# 🔧 修复：避免与ComfyUI的nodes模块冲突，使用直接文件导入
-import sys
-import os
-import importlib.util
+# 🔧 修复：使用正确的相对导入路径
+from ...nodes.mixins.molstar_display_mixin import MolstarDisplayMixin
 
-# 计算项目根目录
-current_file = os.path.abspath(__file__)
-rdkit_extension_dir = os.path.dirname(os.path.dirname(current_file))
-project_root = os.path.dirname(rdkit_extension_dir) 
-
-# 🔑 解决方案：直接从文件路径导入，但设置正确的模块上下文
-mixin_file_path = os.path.join(project_root, 'nodes', 'mixins', 'molstar_display_mixin.py')
-
-# 确保项目根目录和nodes目录都在sys.path中，供MolstarDisplayMixin内部导入使用
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-nodes_dir = os.path.join(project_root, 'nodes')
-if nodes_dir not in sys.path:
-    sys.path.insert(0, nodes_dir)
-
-# 使用importlib导入，但设置正确的模块名避免冲突
-spec = importlib.util.spec_from_file_location("alchem_molstar_display_mixin", mixin_file_path)
-mixin_module = importlib.util.module_from_spec(spec)
-
-# 🔑 关键：设置模块的搜索路径，让它能找到backend
-mixin_module.__file__ = mixin_file_path
-mixin_module.__path__ = [os.path.dirname(mixin_file_path)]
-
-spec.loader.exec_module(mixin_module)
-MolstarDisplayMixin = mixin_module.MolstarDisplayMixin
-
-print(f"✅ MolstarDisplayMixin导入成功 (避免ComfyUI nodes冲突)")
+print("✅ MolstarDisplayMixin导入成功 (相对导入)")
 
 # 🔧 先检查RDKit依赖，再导入RDKit相关模块
 from ..utils.dependency_check import ensure_rdkit

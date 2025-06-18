@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 ALCHEM_PropBtn 是一个 ComfyUI 自定义节点扩展，专注于分子文件处理和3D可视化。项目采用**方案B架构**（节点主动数据获取模式）结合**MolstarDisplayMixin统一架构**，提供上传按钮和3D显示功能，并集成WebSocket实时同步功能。
 
-**当前状态**: ✅ 项目架构稳定，Mixin架构完善，重名文件问题已解决，严格节点ID绑定系统正常工作
+**当前状态**: ✅ 项目架构稳定，Mixin架构完善，重名文件问题已解决，严格节点ID绑定系统正常工作，RDKit节点CACHE访问问题已修复
 
 ## Architecture - 方案B架构 (Node-Pull Pattern)
 
@@ -237,6 +237,13 @@ logger.ui("界面操作");
 - **架构一致性**: 新功能必须遵循方案B的属性驱动模式
 - **严格节点ID绑定**: 所有UI操作严格绑定到节点ID，杜绝重名文件数据混乱
 - **代码质量**: 使用Mixin后保持函数简洁（<50行），避免过度设计
+
+### 🔧 最新修复记录
+- **RDKit节点CACHE访问问题** (2024-12-18): 修复了RDKit节点无法访问全局MOLECULAR_DATA_CACHE的问题
+  - **根本原因**: RDKit节点使用错误的绝对导入路径 `from nodes.mixins.molstar_display_mixin`，而nodes不是包
+  - **简单解决**: 改为正确的相对导入 `from ...nodes.mixins.molstar_display_mixin import MolstarDisplayMixin`
+  - **教训**: 避免复杂的导入回退方案，根本问题往往有简单的解决方法
+  - **效果**: RDKit节点现在能正常获取tab_aware_node_id，正常存储和访问分子数据
 
 ### 开发流程
 - **Python修改**: 需要重启ComfyUI服务器

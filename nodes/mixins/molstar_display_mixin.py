@@ -417,16 +417,7 @@ class MolstarDisplayMixin:
             格式化的调试信息字符串
         """
         try:
-            # 尝试相对导入，失败则使用绝对导入
-            try:
-                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
-            except ImportError:
-                import sys
-                import os
-                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
+            from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK
             
             debug_lines = [
                 "🔍 === MolstarDisplayMixin调试信息 ===",
@@ -663,16 +654,7 @@ class MolstarDisplayMixin:
             Tab感知的存储ID
         """
         try:
-            # 尝试相对导入，失败则使用绝对导入
-            try:
-                from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK, get_active_tab_id
-            except ImportError:
-                import sys
-                import os
-                current_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                from backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK, get_active_tab_id
+            from ...backend.memory import MOLECULAR_DATA_CACHE, CACHE_LOCK, get_active_tab_id
             
             # 🔑 新逻辑：优先使用ACTIVE_TAB_ID
             active_tab_id = get_active_tab_id()
