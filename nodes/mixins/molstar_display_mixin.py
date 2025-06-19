@@ -216,13 +216,21 @@ class MolstarDisplayMixin:
             print(f"  - node_id类型: {type(node_id)}")
             print(f"  - kwargs keys: {list(kwargs.keys())}")
             
-            # 🔑 关键修复：优先使用前端传入的node_id，避免全局状态依赖
+            # 🔑 关键修复：严格使用前端传入的node_id，移除回退逻辑
             if not node_id:
-                print(f"[WARNING] 前端未传入_alchem_node_id，尝试自动获取（可能导致Tab切换问题）")
-                node_id = self._get_current_node_id()
-                print(f"[DEBUG] 自动获取的node_id: '{node_id}'")
+                # 🚨 这应该不会发生了，因为Widget创建时就设置了_alchem_node_id
+                error_msg = "❌ 严重错误：前端未传入_alchem_node_id，这表示Widget初始化失败"
+                print(f"[ERROR] {error_msg}")
+                print(f"[DEBUG] kwargs keys: {list(kwargs.keys())}")
+                # 不再使用回退逻辑，直接返回错误
+                return str(input_value), {
+                    'success': False,
+                    'error': error_msg,
+                    'source': 'missing_node_id',
+                    'node_id': 'missing'
+                }
             else:
-                print(f"[DEBUG] 使用前端传入的tab感知node_id: '{node_id}'")
+                print(f"[DEBUG] ✅ 使用前端传入的tab感知node_id: '{node_id}'")
             
             content, metadata = get_molecular_content(
                 input_value=input_value,
@@ -284,12 +292,15 @@ class MolstarDisplayMixin:
             (processed_content, processing_report, debug_info)
         """
         try:
-            # 🔑 关键修复：优先使用前端传入的node_id，避免全局状态依赖
+            # 🔑 关键修复：严格使用前端传入的node_id，移除回退逻辑
             if not node_id:
-                print(f"[WARNING] process_direct_content: 前端未传入_alchem_node_id，尝试自动获取（可能导致Tab切换问题）")
-                node_id = self._get_current_node_id()
+                # 🚨 这应该不会发生了，因为Widget创建时就设置了_alchem_node_id
+                error_msg = "❌ 严重错误：processing节点未传入_alchem_node_id，这表示Widget初始化失败"
+                print(f"[ERROR] {error_msg}")
+                debug_info = self.generate_debug_info('missing', {'success': False, 'error': error_msg})
+                return ("", error_msg, debug_info)
             else:
-                print(f"[DEBUG] process_direct_content: 使用前端传入的tab感知node_id: '{node_id}'")
+                print(f"[DEBUG] ✅ processing节点使用前端传入的tab感知node_id: '{node_id}'")
             
             print(f"[DEBUG] MolstarDisplayMixin.process_direct_content:")
             print(f"  - 原始node_id: '{node_id}'")
@@ -314,6 +325,9 @@ class MolstarDisplayMixin:
             # 存储处理结果供3D显示使用
             store_result = self.store_processed_data(processed_content, output_filename, node_id)
             
+            # 🔑 修复存储状态检查逻辑
+            storage_success = bool(store_result and 'node_id' in store_result and not store_result.get('error'))
+            
             # 生成处理报告
             input_atoms = len([l for l in content.split('\n') if l.startswith(('ATOM', 'HETATM'))])
             output_atoms = len([l for l in processed_content.split('\n') if l.startswith(('ATOM', 'HETATM'))])
@@ -324,7 +338,7 @@ class MolstarDisplayMixin:
 - 输入原子数: {input_atoms}
 - 输出原子数: {output_atoms}
 - 输出文件: {output_filename}
-- 存储状态: {'✓' if store_result.get('success') else '✗'}
+- 存储状态: {'✓' if storage_success else '✗'}
 
 🎯 架构优势:
 - ✅ 直接内容处理模式

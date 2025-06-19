@@ -668,6 +668,35 @@ export const createMolecularUploadWidget = () => {
         const inputOptions = inputData[1] ?? {};
         const { originalInputName, molecularFolder } = inputOptions;
         
+        // 🔑 关键修复：在上传Widget创建时就设置_alchem_node_id，确保input节点执行时能获取到正确ID
+        try {
+            // 导入数据处理器（动态导入避免循环依赖）
+            import('./modules/data-processor.js').then(({ MolecularDataProcessor }) => {
+                const dataProcessor = new MolecularDataProcessor();
+                const nodeId = dataProcessor.generateUniqueNodeId(node);
+                
+                // 查找并设置_alchem_node_id参数
+                const alchemNodeIdWidget = node.widgets?.find(w => w.name === '_alchem_node_id');
+                if (alchemNodeIdWidget) {
+                    alchemNodeIdWidget.value = nodeId;
+                    console.log(`✅ 上传Widget创建时设置 _alchem_node_id = ${nodeId}`);
+                } else {
+                    console.warn(`⚠️ 上传Widget创建时未找到_alchem_node_id widget，节点: ${node.type}`);
+                }
+            }).catch(err => {
+                console.warn('⚠️ 无法动态导入数据处理器，将使用简单ID生成:', err);
+                // 简单回退方案
+                const simpleNodeId = `workflow_default_node_${node.id}`;
+                const alchemNodeIdWidget = node.widgets?.find(w => w.name === '_alchem_node_id');
+                if (alchemNodeIdWidget) {
+                    alchemNodeIdWidget.value = simpleNodeId;
+                    console.log(`✅ 上传Widget回退设置 _alchem_node_id = ${simpleNodeId}`);
+                }
+            });
+        } catch (error) {
+            console.warn('⚠️ 设置_alchem_node_id时出错:', error);
+        }
+        
         // 找到关联的combo widget
         const comboWidget = node.widgets.find(w => w.name === originalInputName);
         if (!comboWidget) {

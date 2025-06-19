@@ -364,6 +364,19 @@ export const createMolstar3DDisplayWidget = () => {
         const inputOptions = inputData[1] ?? {};
         const { originalInputName } = inputOptions;
         
+        // 🔑 关键修复：在Widget创建时就设置_alchem_node_id，确保节点执行时能获取到正确ID
+        const dataProcessor = alchem3DCoordinator.getDataProcessor();
+        const nodeId = dataProcessor.generateUniqueNodeId(node);
+        
+        // 查找并设置_alchem_node_id参数
+        const alchemNodeIdWidget = node.widgets?.find(w => w.name === '_alchem_node_id');
+        if (alchemNodeIdWidget) {
+            alchemNodeIdWidget.value = nodeId;
+            console.log(`✅ Widget创建时设置 _alchem_node_id = ${nodeId}`);
+        } else {
+            console.warn(`⚠️ Widget创建时未找到_alchem_node_id widget，节点: ${node.type}`);
+        }
+        
         // 创建3D显示按钮
         const displayWidget = node.addWidget(
             'button',
