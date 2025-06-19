@@ -158,10 +158,30 @@ const nodeCreated = (node) => {
         // 处理3D显示节点
         handle3DDisplayNodeCreated(node);
         
+        // 🔑 新增：统一处理所有包含_alchem_node_id的节点（修复复制时ID不更新问题）
+        const alchemNodeIdWidget = node.widgets?.find(w => w.name === '_alchem_node_id');
+        if (alchemNodeIdWidget) {
+            // 动态导入数据处理器来生成新的节点ID
+            import('./modules/data-processor.js').then(({ MolecularDataProcessor }) => {
+                const dataProcessor = new MolecularDataProcessor();
+                const newNodeId = dataProcessor.generateUniqueNodeId(node);
+                
+                // 更新节点ID（适用于复制、创建等所有场景）
+                alchemNodeIdWidget.value = newNodeId;
+                logger.debug(`✅ 节点创建/复制时更新 _alchem_node_id = ${newNodeId} (节点类型: ${node.type})`);
+            }).catch(err => {
+                // 简单回退方案
+                const simpleNodeId = `workflow_default_node_${node.id}`;
+                alchemNodeIdWidget.value = simpleNodeId;
+                logger.debug(`✅ 节点创建/复制时回退设置 _alchem_node_id = ${simpleNodeId} (节点类型: ${node.type})`);
+            });
+        }
+        
         // 记录节点创建
         if (node.type && (
             node.type.includes('CustomUpload') || 
-            node.type.includes('Demo3DDisplay')
+            node.type.includes('Demo3DDisplay') ||
+            alchemNodeIdWidget // 或者任何包含ALCHEM功能的节点
         )) {
             logger.debug(`Enhanced node created: ${node.type} (ID: ${node.id})`);
         }

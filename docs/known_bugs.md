@@ -1,20 +1,8 @@
-1. RDKit Molecular Editor节点，如果两个节点输出文件名一样，会导致其中一个CACHE的丢失
+1. RDKit Molecular Editor节点，如果两个节点输出文件名一样，会导致其中一个CACHE的丢失 【已修复】
 
-2. rdkit molecular editor 的edit_report输出，储状态那里有个叉号，是为什么呢：
-✅ 处理完成 (使用MolstarDisplayMixin)       
+2.  get_molstar_input_config这类mixin节点，不仅在点molstar_3d按钮的时候能更新_alchem_node_id，也在节点复制等操作的时候能自动更新_alchem_node_id。get_processing_input_config 这类中间处理节点，节点复制的时候_alchem_node_id不会自动更新。为啥呢 【已修复】
 
-  🔧 处理信息:
-  - 输入原子数: 131
-  - 输出原子数: 250
-  - 输出文件: rdkit_edited.pdb
-  - 存储状态: ✗
+原因：不同类型的Mixin配置触发了不同的Widget注册机制。get_molstar_input_config包含上传+3D显示功能，而get_processing_input_config只有3D显示功能，缺少上传Widget的复制事件监听。
 
-  🎯 架构优势:
-  - ✅ 直接内容处理模式
-  - ✅ 3D显示零配置启用
-  - ✅ 简化的处理流程
-  - ✅ 标准化错误处理
-
-3.  rdkit molecular editor 这类中间处理节点，_alchem_node_id不会自动更新
+修复：在extensionMain.js的nodeCreated函数中添加统一的节点复制检测机制，为所有包含_alchem_node_id的节点自动更新ID。
   
-4. _alchem_node_id有很多回退逻辑，都没啥用。目前的所有方案中，只有一种方案是对的，从前端获取，作为参数传入。
